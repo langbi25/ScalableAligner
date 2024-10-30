@@ -25,6 +25,10 @@
 // #include <boost/atomic.hpp>
 #include "task_queue/concurrentqueue.h"
 #include "task_queue/readerwriterqueue.h"
+#include "SBT/Kmers.h"
+#include "SBT/BF.h"
+#include "SBT/BloomTree.h"
+
 #include "PthreadPool.h"
 #include <queue>
 #include "executor.h"
@@ -533,4 +537,6 @@ extern vector<SeedPair_t> GenerateSimplePairsFromFragmentPair(int MaxDist, int l
 extern void nw_alignment(int m, string& s1, int n, string& s2);
 
 extern void nw_alignment_band(int m, string& s1, int n, string& s2);
+
+
 

@@ -127,7 +127,7 @@ void IdentifySeedPairs_FastMode_Recycle(int rlen, uint8_t* EncodeSeq ,vector<See
 void IdentifySeedPairs_FastMode_getN(int rlen, uint8_t* EncodeSeq ,vector<SeedPair_t>& SeedPairVec ,int gotN)
 {
 	SeedPair_t SeedPair;
-	int i, pos, end_pos ,seed_len;
+	int  pos=0, end_pos ,seed_len;
 	// vector<SeedPair_t> SeedPairVec;
 	vector<bwtint_t> il_list;
 	vector<int> interval_list;
@@ -139,31 +139,41 @@ void IdentifySeedPairs_FastMode_getN(int rlen, uint8_t* EncodeSeq ,vector<SeedPa
 	
 	// pos = 0, end_pos = rlen - MinSeedLength;
 	seed_len =20;	
-	pos = 0, end_pos = rlen - seed_len;
+	end_pos = rlen - seed_len;
 
 	int last_rightest =0;
+
 	// for(int i=0;i<rlen;i++){
 	// 	printf("%d",EncodeSeq[i]);
 	// }
 	// printf("\n");
-	// printf("gotN:%d\n",gotN);
-	while (pos < end_pos){
-		if (EncodeSeq[pos] > 3) {
-			pos++;
-		}else{
-			if(bHash && !gotN){
-				bwtSearchResult = BWT_Search_Forward_hash(EncodeSeq, pos, rlen,last_rightest,&il_list, &interval_list,&match_len_list,&match_beg_list);
+
+	try
+	{
+		while (pos < end_pos){
+			if (EncodeSeq[pos] > 3) {
+				pos++;
 			}else{
-				bwtSearchResult = BWT_Search_Forward_3(EncodeSeq, pos, rlen,last_rightest,&il_list, &interval_list,&match_len_list,&match_beg_list);
+				if(bHash && !gotN){
+					bwtSearchResult = BWT_Search_Forward_hash(EncodeSeq, pos, rlen,last_rightest,&il_list, &interval_list,&match_len_list,&match_beg_list);
+				}else{
+					bwtSearchResult = BWT_Search_Forward_3(EncodeSeq, pos, rlen,last_rightest,&il_list, &interval_list,&match_len_list,&match_beg_list);
+				}
+				
+				last_rightest =bwtSearchResult.rightset;
+				if(last_rightest ==rlen){
+					break;
+				}
+				pos += (bwtSearchResult.len + 1);
 			}
-			
-			last_rightest =bwtSearchResult.rightset;
-			if(last_rightest ==rlen){
-				break;
-			}
-			pos += (bwtSearchResult.len + 1);
 		}
+		/* code */
 	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+	
 
 
 
@@ -171,20 +181,26 @@ void IdentifySeedPairs_FastMode_getN(int rlen, uint8_t* EncodeSeq ,vector<SeedPa
 		if(bHash && !gotN){
 			bwtSearchResult =BWT_Search_Backward_hash(EncodeSeq, rlen, 0,&il_list, &interval_list,&match_len_list,&match_beg_list);
 		}else{
-
 			bwtSearchResult =BWT_Search_Backward(EncodeSeq, rlen, 0,&il_list, &interval_list,&match_len_list,&match_beg_list);
 		}
-		// fprintf(stderr,"%d-%d interval:%d\n",rlen,bwtSearchResult.len ,bwtSearchResult.freq);
 	}
 
 	for(int i=0;i<il_list.size();i++){	
 		bwt_sa_batch(il_list[i],interval_list[i],match_len_list[i],match_beg_list[i],SeedPairVec);
-		// fprintf(stderr,"%d-%d-%d-%ld\n",match_beg_list[i],match_len_list[i]+match_beg_list[i],interval_list[i],il_list[i]);
-
 	}
 
+
+
 	sort(SeedPairVec.begin(), SeedPairVec.end(), CompByPosDiff);
-	// return SeedPairVec;
+
+
+	vector<bwtint_t>().swap(il_list);
+
+	vector<int>().swap(interval_list);
+	vector<int>().swap(match_len_list);
+	vector<int>().swap(match_beg_list);
+
+
 }
 
 

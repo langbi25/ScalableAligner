@@ -18,8 +18,8 @@ bool bDebugMode, bPairEnd, bPacBioData, bMultiHit, gzCompressed, FastQFormat, bS
 
 void Usage()
 {
-	fprintf(stdout, "kart v (Hsin-Nan Lin & Wen-Lian Hsu)\n\n");
-	fprintf(stdout, "Usage:  -i Index_Prefix -f <ReadFile_A1 ReadFile_B1 ...> [-f2 <ReadFile_A2 ReadFile_B2 ...>] -o Output\n\n");
+	fprintf(stdout, "sealigner v (Hsin-Nan Lin & Wen-Lian Hsu)\n\n");
+	fprintf(stdout, "Usage:  -i Index_Prefix -fd <ReadFile_A1 ReadFile_B1 ...> [-fd2 <ReadFile_A2 ReadFile_B2 ...>] -o Output\n\n");
 	fprintf(stdout, "Options: -t INT        number of threads [4]\n");
 	fprintf(stdout, "         -fd            files with #1 mates reads (format:fa, fq, fq.gz)\n");
 	fprintf(stdout, "         -fd2           files with #2 mates reads (format:fa, fq, fq.gz)\n");

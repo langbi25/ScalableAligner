@@ -264,6 +264,7 @@ bwt_t *bwa_idx_load_bwt(const char *prefix)
 	bwt_restore_sa(tmp, bwt);
 	free(tmp); 
 	return bwt;
+
 }
 
 
@@ -3438,35 +3439,25 @@ bwtSearchResult_t BWT_Search_Forward_3(uint8_t* seq, int start, int stop ,int la
 
 bwtSearchResult_t BWT_Search_Forward_hash(uint8_t* seq, int start, int stop ,int last_rightset,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list)
 {
-	int i, pos, p,rightest ,leftest,temp_start;
+	int i, pos=0, p,rightest=0 ,leftest=0,temp_start;
 	bwtintv_t ik, ok[4];
 	bwtint_t tk[4], tl[4];
 	bwtSearchResult_t bwtSearchResult;
 	// printf("forward33333333\n");
 	uint32_t kmer_no =(int)seq[start] & 0b11;
-	// printf("%d",kmer_no);
-	for(int i=1;i<10;i++){
-			// printf("%d",(int)seq[start+i]);
-		kmer_no = (kmer_no<<2) +((int)seq[start+i] & 0b11);
+	int j =1;
+	for(j=1;j<10;j++){
+		kmer_no = (kmer_no<<2) +((int)seq[start+j] & 0b11);
 	}
+
 	temp_start =start;
 	start +=9;
-
-	// printf("\n");
-	// printf("kmer_no:%d\n",kmer_no);
-
-	// printf("%ld %ld %ld\n",bwtIdx->hash->kmer_hash[kmer_no].x[0],bwtIdx->hash->kmer_hash[kmer_no].x[1],bwtIdx->hash->kmer_hash[kmer_no].x[2]);
-
-	// p = (int)seq[start];
-	// ik.x[0] = bwt->L2[p] + 1;
-	// ik.x[1] = bwt->L2[3 - p] + 1;
-	// //interval
-	// ik.x[2] = bwt->L2[p + 1] - bwt->L2[p];
-	// 		printf("%d %ld %ld %ld\n",seq[start],ik.x[0],ik.x[1],ik.x[2]);
 
 	ik.x[0] = bwtIdx->hash->kmer_hash[kmer_no].x[0];
 	ik.x[1] = bwtIdx->hash->kmer_hash[kmer_no].x[1];
 	ik.x[2] = bwtIdx->hash->kmer_hash[kmer_no].x[2];//interval
+			// printf("%ld\t%ld\t%ld\t",ik.x[0],ik.x[1],ik.x[2]);
+
 
 	bwtSearchResult.freq = 0; 
 	bwtSearchResult.LocArr = NULL;
@@ -3567,9 +3558,9 @@ bwtSearchResult_t BWT_Search_Forward_hash(uint8_t* seq, int start, int stop ,int
 
 		kmer_no =(int)seq[com_start] & 0b11;
 		// printf("%d",kmer_no);
-		for(int i=1;i<10;i++){
+		for(int j=1;j<10;j++){
 				// printf("%d",(int)seq[start+i]);
-			kmer_no = (kmer_no<<2) +((int)seq[com_start+i] & 0b11);
+			kmer_no = (kmer_no<<2) +((int)seq[com_start+j] & 0b11);
 		}
 		com_start +=9;
 		ik.x[0] = bwtIdx->hash->kmer_hash[kmer_no].x[0];

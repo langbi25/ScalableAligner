@@ -406,51 +406,51 @@ int bwa_idx_build(const char *fa, const char *prefix) //**//
 	str3 = (char*)calloc(strlen(prefix) + 10, 1);
 	str4 = (char*)calloc(strlen(prefix) + 10, 1);
 
-	// { // nucleotide indexing
-	// 	gzFile fp = xzopen(fa, "r");
-	// 	t = clock();
-	// 	fprintf(stdout, "[bwt_index] Pack FASTA... ");
-	// 	l_pac = bns_fasta2bntseq(fp, prefix, 0);
-	// 	fprintf(stdout, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
-	// 	err_gzclose(fp);
-	// }
-	// //if (algo_type == 0) algo_type = l_pac > 50000000? 2 : 3; // set the algorithm for generating BWT
-	// {
-	// 	//printf("algo_type = %d\n", algo_type);
+	{ // nucleotide indexing
+		gzFile fp = xzopen(fa, "r");
+		t = clock();
+		fprintf(stdout, "[bwt_index] Pack FASTA... ");
+		l_pac = bns_fasta2bntseq(fp, prefix, 0);
+		fprintf(stdout, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+		err_gzclose(fp);
+	}
+	//if (algo_type == 0) algo_type = l_pac > 50000000? 2 : 3; // set the algorithm for generating BWT
+	{
+		//printf("algo_type = %d\n", algo_type);
 
-	// 	strcpy(str, prefix); strcat(str, ".pac");
-	// 	strcpy(str2, prefix); strcat(str2, ".bwt");
-	// 	t = clock();
-	// 	fprintf(stdout, "[bwt_index] Construct BWT for the packed sequence...\n");
-	// 	//if (algo_type == 2) 
-	// 		bwt_bwtgen2(str, str2, 10000000);
-	// 	//else if (algo_type == 1 || algo_type == 3) {
-	// 		//bwt_t *bwt;
-	// 		//bwt = bwt_pac2bwt(str/*, algo_type == 3*/);
-	// 		//bwt_dump_bwt(str2, bwt);
-	// 		//bwt_destroy(bwt);
-	// 	//}
-	// 	fprintf(stdout, "[bwt_index] %.2f seconds elapse.\n", (float)(clock() - t) / CLOCKS_PER_SEC);
-	// }
-	// {
-	// 	bwt_t *bwt;
-	// 	strcpy(str, prefix); strcat(str, ".bwt");
-	// 	t = clock();
-	// 	fprintf(stdout, "[bwt_index] Update BWT... ");
-	// 	bwt = bwt_restore_bwt(str);
-	// 	bwt_bwtupdate_core(bwt);
-	// 	bwt_dump_bwt(str, bwt);
-	// 	bwt_destroy(bwt);
-	// 	fprintf(stdout, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
-	// }
-	// {
-	// 	gzFile fp = xzopen(fa, "r");
-	// 	t = clock();
-	// 	fprintf(stdout, "[bwt_index] Pack forward-only FASTA... ");
-	// 	l_pac = bns_fasta2bntseq(fp, prefix, 1);
-	// 	fprintf(stdout, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
-	// 	err_gzclose(fp);
-	// }
+		strcpy(str, prefix); strcat(str, ".pac");
+		strcpy(str2, prefix); strcat(str2, ".bwt");
+		t = clock();
+		fprintf(stdout, "[bwt_index] Construct BWT for the packed sequence...\n");
+		//if (algo_type == 2) 
+			bwt_bwtgen2(str, str2, 10000000);
+		//else if (algo_type == 1 || algo_type == 3) {
+			//bwt_t *bwt;
+			//bwt = bwt_pac2bwt(str/*, algo_type == 3*/);
+			//bwt_dump_bwt(str2, bwt);
+			//bwt_destroy(bwt);
+		//}
+		fprintf(stdout, "[bwt_index] %.2f seconds elapse.\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	}
+	{
+		bwt_t *bwt;
+		strcpy(str, prefix); strcat(str, ".bwt");
+		t = clock();
+		fprintf(stdout, "[bwt_index] Update BWT... ");
+		bwt = bwt_restore_bwt(str);
+		bwt_bwtupdate_core(bwt);
+		bwt_dump_bwt(str, bwt);
+		bwt_destroy(bwt);
+		fprintf(stdout, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+	}
+	{
+		gzFile fp = xzopen(fa, "r");
+		t = clock();
+		fprintf(stdout, "[bwt_index] Pack forward-only FASTA... ");
+		l_pac = bns_fasta2bntseq(fp, prefix, 1);
+		fprintf(stdout, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
+		err_gzclose(fp);
+	}
 	{
 		bwt_t *bwt;
 		strcpy(str, prefix); strcat(str, ".bwt");
@@ -463,11 +463,11 @@ int bwa_idx_build(const char *fa, const char *prefix) //**//
 
 		fprintf(stdout, "\n[bwt_index] Construct Hash from BWT and Occ... ");
 		gen_tenlen_seq(bwt,str4);
-		// bwt_cal_sa(bwt, 32);
-		// bwt_dump_sa(str3, bwt);
+		bwt_cal_sa(bwt, 32);
+		bwt_dump_sa(str3, bwt);
 		bwt_destroy(bwt);
 		fprintf(stdout, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC);
 	}
-	free(str3); free(str2); free(str);
+	free(str3); free(str2); free(str);free(str4);
 	return 0;
 }

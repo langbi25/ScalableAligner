@@ -2,8 +2,14 @@
 #include "htslib/htslib/sam.h"
 #include "htslib/htslib/kseq.h"
 #include "htslib/htslib/kstring.h"
+
 #define MAPQ_COEF 30
 #define Max_MAPQ  60
+
+float QUERY_THRESHOLD = 0.9;
+HashPair* hashes;
+UncompressedBF* bf;
+FILE *bffile;
 
 
 
@@ -18,17 +24,12 @@ gzFile gzReadFileHandler1, gzReadFileHandler2;
 
 int64_t iDistance = 0;
 int64_t iTotalReadNum = 0, iUniqueMapping = 0, iUnMapping = 0, iPaired = 0;
-// boost::lockfree::spsc_queue<QueueItem_t*, boost::lockfree::capacity<InputQueueSize> > spsc_queue;
-// boost::lockfree::queue<QueueItem_t*,  boost::lockfree::capacity<InputQueueSize>> spsc_queue_output;
-// moodycamel::ReaderWriterQueue<int> q(100);
+
 bam_hdr_t *header = NULL;
 moodycamel::ConcurrentQueue<QueueItem_t*> spsc_queue_input;
 moodycamel::ConcurrentQueue<SamOutputItem_t*> spsc_queue_output;
 moodycamel::ConcurrentQueue<SamOutputItem_t*> spsc_queue_output_addr;
-// moodycamel::ConcurrentQueue<char*> address_array; //用于回收数组
 
-// threadInputArg *input_arg;
-// threadOutputArg *output_arg; 
 
 int ReadChunkSize,InputQueueSize;
 
@@ -411,11 +412,11 @@ void   process_read_block(Executor<QueueItem_t *> *executor){
 
 	// fclose(rfile_text);
 	// precision, recall
-	FILE *rfile = fopen("io_exp_1.csv", "a");
+	// FILE *rfile = fopen("io_exp_1.csv", "a");
 
-	fprintf(rfile, "%s: %s\t%d\t%.2lld\n",readFile1.c_str(),outputFile,threadNum, readTime);
+	// fprintf(rfile, "%s: %s\t%d\t%.2lld\n",readFile1.c_str(),outputFile,threadNum, readTime);
 
-	fclose(rfile);
+	// fclose(rfile);
 
 
 	printf("读线程结束\n");
@@ -614,6 +615,8 @@ void process_write_disorder(){
 
     SamOutputItem_t *tempQueueItem;
    	while(1) {
+
+
         if(output_info.shutdown && spsc_queue_output.size_approx()==0 && process_num.load()==0 ) { 
 			write(sam_out_fd, block_buff, tmp_offset );
 
@@ -626,6 +629,7 @@ void process_write_disorder(){
         }else{
 			if(!spsc_queue_output.try_dequeue(tempQueueItem)){ 
 				continue;
+
 			}else{
 
 				output_count++;	
@@ -673,14 +677,14 @@ void process_write_disorder(){
 				if(output_count %1000 ==0){
 					fprintf(stderr, "写线程:输出第%d(%d)的%d条reads\n",output_count,tempQueueItem->index,tempQueueItem->readNum);
 				}
-				// fprintf(stderr,"spsc_queue_output.size_approx:%d process_num.load:%d\n",spsc_queue_output.size_approx(),process_num.load());
 
 				// fprintf(stderr, "写线程:输出第%d(%d)的%d条reads\n",output_index++,tempQueueItem->index,total_processed_read+=tempQueueItem->readNum);
 				updateStatistic(tempQueueItem);
+				// fprintf(stderr,"spsc_queue_output.size_approx:%d process_num.load:%d\n",spsc_queue_output.size_approx(),process_num.load());
+
 				// fflush(stderr);
 				spsc_queue_output_addr.enqueue(tempQueueItem);
 				process_num.fetch_add(-1);
-
 				
 			}
 		}
@@ -798,6 +802,28 @@ void EnCodeReadSeq(int rlen, char* seq, uint8_t* EncodeSeq ,int * gotN)
 		}
        EncodeSeq[i] = nst_nt4_table[(int)seq[i]]; 
     }
+
+
+    float c = 0;
+    unsigned n = 0;
+    bool weighted = 0;
+	const std::set<jellyfish::mer_dna> & q =kmers_in_string(seq);
+    for ( auto & m : q) {
+        // DEBUG: std::cout << "checking: " << m.to_str()<<endl;
+        // if (bf->contains(m)) c++;
+        //DEBUG: std::cout << c << std::endl;
+		// fprintf(stdout,"%s\n",m.to_str().c_str());
+        if (bf->contains(m)){
+			n++;
+		} 
+		// c+=weight;
+    }
+    // // std::cerr << root->name() <<std::endl;
+    // std::cerr << n << " " << QUERY_THRESHOLD << " " << q.size()<<" " <<(float)n/q.size() << std::endl;
+	int wdnmd =(int)q.size();
+	float nmsl= (float)n/q.size();
+	fprintf(bffile, "%d\t%f\t%d\t%f\n",n,QUERY_THRESHOLD,wdnmd,nmsl );
+
 }
 
 
@@ -1621,6 +1647,7 @@ void  process_mapping( void * arg ) {
 	int i, j;
 
 
+	
 
     if (bPacBioData) buffer = new char[1024000];
 	else buffer = new char[10240];
@@ -1653,8 +1680,8 @@ void  process_mapping( void * arg ) {
         for(i=0;i<queueItem->readNum;i++){
             queueItem->EncodeSeq[i] = new uint8_t[queueItem->readArr[i].rlen];
             EnCodeReadSeq(queueItem->readArr[i].rlen, queueItem->readArr[i].seq, queueItem->EncodeSeq[i],&queueItem->readArr[i].gotN);
-
         }
+		//在这里植入布隆过滤器
 
 		for(i=0;i<queueItem->readNum;i++){
 			IdentifySeedPairs_FastMode_getN(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN);
@@ -1925,6 +1952,22 @@ void process(){
 	StartProcessTime = time(NULL);
 
 
+	hashes = new HashPair;
+	int num_hashes =0;
+	hashes = get_hash_function("/home/b8402/22_liangjialang/tools/bloomtree/hashfile", num_hashes);
+
+
+	 bf =new UncompressedBF("/home/b8402/22_liangjialang/tools/bloomtree/chr5_3.bf.bv",*hashes,num_hashes);
+
+	bf->load();
+	printf("wdnmdddd:%d\n",bf->size());
+
+
+	// fclose(rfile_text);
+	// precision, recall
+	bffile = fopen("bf_chr5_3.csv", "w");
+
+
 
 	//写线程
 	std::thread threadOutput;
@@ -1950,7 +1993,6 @@ void process(){
 	std::unique_lock<std::mutex> lock(run_mutex_t);
 	// lock.lock();
 	while(output_info.runFlag){
-		// printf("all right\n");
 		run_cv_t.wait(lock);
 	}
 	// lock.unlock();
@@ -1982,6 +2024,8 @@ void process(){
 	// free(block_buff);
     processFree();
 
+	delete bf;
+	fclose(bffile);
 
 
 	fprintf(stderr, "\rAll the %lld %s reads have been processed in %lld seconds.\n", (long long)iTotalReadNum, (bPairEnd? "paired-end":"single-end"), (long long)(time(NULL) - StartProcessTime));
