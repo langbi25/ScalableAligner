@@ -188,7 +188,7 @@ void UncompressedBF::load() {
 
 
     sdsl::load_from_file(*bv, filename);
-    std::cerr << "Loaded bv size " << bv->size() << ' ' << size() << std::endl;
+    // std::cerr << "Loaded bv size " << bv->size() << ' ' << size() << std::endl;
 }
 
 void UncompressedBF::save() {
@@ -387,22 +387,22 @@ BF* load_bf_from_file(const std::string & fn, HashPair hp, int nh) {
     }
 }
 
-HashPair* get_hash_function(const std::string & matrix_file, int & nh) {
-    std::cerr << "Loading hashes from " << matrix_file << std::endl; 
-    igzstream in(matrix_file.c_str(), std::ios::in | std::ios::binary);
-    jellyfish::file_header header(in);
-    if(!in.good()){
-        DEBUG: std::cout << "Couldn't parse bloom filter header!" ;
+// HashPair* get_hash_function(const std::string & matrix_file, int & nh) {
+//     std::cerr << "Loading hashes from " << matrix_file << std::endl; 
+//     igzstream in(matrix_file.c_str(), std::ios::in | std::ios::binary);
+//     jellyfish::file_header header(in);
+//     if(!in.good()){
+//         DEBUG: std::cout << "Couldn't parse bloom filter header!" ;
  
-    }
-    // DIE_IF(!in.good(), "Couldn't parse bloom filter header!");
-    HashPair * hp = new HashPair(header.matrix(1), header.matrix(2));
-    in.close();
+//     }
+//     // DIE_IF(!in.good(), "Couldn't parse bloom filter header!");
+//     HashPair * hp = new HashPair(header.matrix(1), header.matrix(2));
+//     in.close();
 
-    nh = header.nb_hashes();
-    std::cerr << "# Hash applications=" << nh << std::endl;
+//     nh = header.nb_hashes();
+//     std::cerr << "# Hash applications=" << nh << std::endl;
 
-    jellyfish::mer_dna::k(header.key_len() / 2);
-    std::cerr << "Read hashes for k=" << jellyfish::mer_dna::k() << std::endl;
-    return hp;
-}
+//     jellyfish::mer_dna::k(header.key_len() / 2);
+//     std::cerr << "Read hashes for k=" << jellyfish::mer_dna::k() << std::endl;
+//     return hp;
+// }

@@ -28,6 +28,9 @@
 #include "SBT/Kmers.h"
 #include "SBT/BF.h"
 #include "SBT/BloomTree.h"
+#include "SBT/util.h"
+#include "SBT/Query.h"
+
 
 #include "PthreadPool.h"
 #include <queue>
@@ -216,6 +219,11 @@ typedef struct
 	AlignmentReport_t* AlnReportArr;
 	int feature;
 	int gotN;
+
+
+	std::set<jellyfish::mer_dna> query_kmers;
+    std::vector<const BloomTree*> matching;
+    std::vector<float> weight;
 } ReadItem_t;
 
 typedef struct{

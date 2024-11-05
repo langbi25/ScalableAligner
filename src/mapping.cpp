@@ -6,12 +6,12 @@
 #define MAPQ_COEF 30
 #define Max_MAPQ  60
 
-float QUERY_THRESHOLD = 0.9;
-HashPair* hashes;
-UncompressedBF* bf;
+// float QUERY_THRESHOLD = 0.9;
+// HashPair* hashes;
+// UncompressedBF* bf;
 FILE *bffile;
 
-
+BloomTree* root;
 
 time_t StartProcessTime;
 FILE *sam_out = 0;
@@ -804,25 +804,24 @@ void EnCodeReadSeq(int rlen, char* seq, uint8_t* EncodeSeq ,int * gotN)
     }
 
 
-    float c = 0;
-    unsigned n = 0;
-    bool weighted = 0;
-	const std::set<jellyfish::mer_dna> & q =kmers_in_string(seq);
-    for ( auto & m : q) {
-        // DEBUG: std::cout << "checking: " << m.to_str()<<endl;
-        // if (bf->contains(m)) c++;
-        //DEBUG: std::cout << c << std::endl;
-		// fprintf(stdout,"%s\n",m.to_str().c_str());
-        if (bf->contains(m)){
-			n++;
-		} 
-		// c+=weight;
-    }
-    // // std::cerr << root->name() <<std::endl;
-    // std::cerr << n << " " << QUERY_THRESHOLD << " " << q.size()<<" " <<(float)n/q.size() << std::endl;
-	int wdnmd =(int)q.size();
-	float nmsl= (float)n/q.size();
-	fprintf(bffile, "%d\t%f\t%d\t%f\n",n,QUERY_THRESHOLD,wdnmd,nmsl );
+    // float c = 0;
+    // unsigned n = 0;
+    // bool weighted = 0;
+	// const std::set<jellyfish::mer_dna> & q =kmers_in_string(seq);
+    // for ( auto & m : q) {
+    //     // DEBUG: std::cout << "checking: " << m.to_str()<<endl;
+    //     // if (bf->contains(m)) c++;
+    //     //DEBUG: std::cout << c << std::endl;
+	// 	// fprintf(stdout,"%s\n",m.to_str().c_str());
+    //     if (bf->contains(m)){
+	// 		n++;
+	// 	} 
+	// 	// c+=weight;
+    // }
+    // // // std::cerr << root->name() <<std::endl;
+    // // std::cerr << n << " " << QUERY_THRESHOLD << " " << q.size()<<" " <<(float)n/q.size() << std::endl;
+	// int wdnmd =(int)q.size();
+	// float nmsl= (float)n/q.size();
 
 }
 
@@ -1627,6 +1626,7 @@ void OutputPairedAlignments_block(ReadItem_t& read1, ReadItem_t& read2, char* bu
 
 
 
+
 void  process_mapping( void * arg ) {
     char* buffer;
     QueueItem_t *queueItem =(QueueItem_t *)arg;
@@ -1647,7 +1647,7 @@ void  process_mapping( void * arg ) {
 	int i, j;
 
 
-	
+	QuerySet qs;
 
     if (bPacBioData) buffer = new char[1024000];
 	else buffer = new char[10240];
@@ -1677,11 +1677,32 @@ void  process_mapping( void * arg ) {
 	}else if (bPairEnd && queueItem->readNum % 2 == 0){
 
 
+		// for (auto& q : qs) {
+		// 	out << "*" << q->query << " " << q->matching.size() << std::endl;
+		// 	for (const auto& n : q->matching) {
+		// 		out << n->name() << std::endl;
+		// 	}
+		// }
+		// print_query_results(qs, o);
+		
+
         for(i=0;i<queueItem->readNum;i++){
             queueItem->EncodeSeq[i] = new uint8_t[queueItem->readArr[i].rlen];
             EnCodeReadSeq(queueItem->readArr[i].rlen, queueItem->readArr[i].seq, queueItem->EncodeSeq[i],&queueItem->readArr[i].gotN);
+			qs.emplace_back(new QueryInfo(queueItem->readArr[i].seq));
         }
 		//在这里植入布隆过滤器
+
+		query_batch(root, qs);
+
+		for (auto& q : qs) {
+			fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
+			for (const auto& n : q->matching) {
+				fprintf(bffile, "%s\t",n->name().c_str() );
+			}
+			fprintf(bffile, "\n" );
+		}
+
 
 		for(i=0;i<queueItem->readNum;i++){
 			IdentifySeedPairs_FastMode_getN(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN);
@@ -1765,7 +1786,9 @@ void  process_mapping( void * arg ) {
 
         // myUniqueMapping = myUnMapping = 0; 
     }
-
+	for (auto & p : qs) {
+		delete p;
+	}
 
 	for (i=0;i<queueItem->readNum;i++){
 		vector<SeedPair_t>().swap(queueItem->SeedPairVec1[i]);
@@ -1952,20 +1975,25 @@ void process(){
 	StartProcessTime = time(NULL);
 
 
-	hashes = new HashPair;
-	int num_hashes =0;
-	hashes = get_hash_function("/home/b8402/22_liangjialang/tools/bloomtree/hashfile", num_hashes);
+	// hashes = new HashPair;
+	// int num_hashes =0;
+	// hashes = get_hash_function("/home/b8402/22_liangjialang/tools/bloomtree/hashfile", num_hashes);
 
 
-	 bf =new UncompressedBF("/home/b8402/22_liangjialang/tools/bloomtree/chr5_3.bf.bv",*hashes,num_hashes);
+	//  bf =new UncompressedBF("/home/b8402/22_liangjialang/tools/bloomtree/chr5_3.bf.bv",*hashes,num_hashes);
 
-	bf->load();
-	printf("wdnmdddd:%d\n",bf->size());
+
+
+	root = read_bloom_tree_hash("/home/b8402/22_liangjialang/dataset/chroms_sbt_2/chromSBT.bloomtree","/home/b8402/22_liangjialang/tools/bloomtree/hashfile");
+
+
+	// bf->load();
+	// printf("wdnmdddd:%d\n",bf->size());
 
 
 	// fclose(rfile_text);
 	// precision, recall
-	bffile = fopen("bf_chr5_3.csv", "w");
+	bffile = fopen("sbt_2_40.csv", "w");
 
 
 
@@ -2024,7 +2052,7 @@ void process(){
 	// free(block_buff);
     processFree();
 
-	delete bf;
+	// delete bf;
 	fclose(bffile);
 
 

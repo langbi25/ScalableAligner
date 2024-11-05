@@ -9,7 +9,7 @@
 #include <jellyfish/file_header.hpp>
 
 Heap<const BloomTree> BloomTree::bf_cache;
-int BF_INMEM_LIMIT = 100;
+int BF_INMEM_LIMIT = 1000;
 
 // construct a bloom filter with the given filter backing.
 BloomTree::BloomTree(
@@ -70,6 +70,11 @@ BF* BloomTree::bf() const {
     return bloom_filter;
 }
 
+// return the bloom filter, loading first if necessary
+BF* BloomTree::getBF() const {
+    return bloom_filter;
+}
+
 // return the number of times this bloom filter has been used.
 int BloomTree::usage() const {
     return usage_count;
@@ -108,8 +113,8 @@ void BloomTree::drain_cache() {
         const BloomTree* loser = bf_cache.pop();
         loser->heap_ref = nullptr;
 
-        //std::cerr << "Unloading BF: " << loser->filename   
-        //          << " cache size = " << bf_cache.size() << std::endl;
+        std::cerr << "Unloading BF: " << loser->filename   
+                 << " cache size = " << bf_cache.size() << std::endl;
         loser->unload();
     }
 }
@@ -124,12 +129,15 @@ void BloomTree::protected_cache(bool b) {
 // Loads the bloom filtering into memory
 bool BloomTree::load() const {
     if (bloom_filter == nullptr) {
-        //std::cerr << "Loading BF: " << filename << std::endl;
+        // std::cerr << "Loading BF: " << filename << std::endl;
 
         // if the cache isn't protected from deleting elements, remove enough
         // elements so that there is 1 cache spot free (if the cache is
         // protected, we're allowed to go over the cache limit)
-        if(!bf_cache.is_protected()) BloomTree::drain_cache();
+        if(!bf_cache.is_protected()){
+            // std::cerr << "11111111111Loading BF: " << filename << std::endl;
+            BloomTree::drain_cache();
+        } 
 
         // read the BF file and set bloom_filter
         bloom_filter = load_bf_from_file(filename, hashes, num_hash);
@@ -303,6 +311,98 @@ BloomTree* read_bloom_tree(const std::string & filename, bool read_hashes) {
     
     return tree_root;
 }
+
+
+
+BloomTree* read_bloom_tree_hash(const std::string & filename,const std::string & hash_filename) {
+    std::ifstream in(filename.c_str());
+
+
+
+    std::list<BloomTree*> path;
+    BloomTree* tree_root = 0;
+    int n = 0;
+    // if read_hashes is false, you must promise never to access the bloom filters
+    HashPair* hashes = new HashPair; // useless hashpair used if read_hashes is false
+    int num_hashes = 0;
+
+
+    hashes = get_hash_function(hash_filename, num_hashes);
+
+    std::string node_info;
+
+
+
+    while (std::getline(in, node_info)) {
+
+        node_info = Trim(node_info);
+
+        if (node_info.size() == 0) continue;
+        size_t level = node_info.find_first_not_of("*");
+        node_info.erase(0, level);
+
+        // each node info is a comma separated list
+        std::vector<std::string> fields;
+        SplitString(node_info, ',', fields);
+        std::string bf_filename = fields[0];
+        // std::cerr << "Reading BN info: " << bf_filename << " level = " << level << std::endl;
+
+        n++;
+
+        BloomTree* bn = nullptr;
+
+        // if we're at the root
+        if (path.size() == 0) {
+            DIE_IF(level != 0, "Root must start in column 0");
+            DIE_IF(tree_root != 0, "Can't set root twice!");
+
+            // // set the hash function up
+            // if (read_hashes) {
+            //     DIE_IF(fields.size() < 2, "Must specify hash file for root.");
+            //     hashes = get_hash_function(fields[1], num_hashes);
+            // }
+
+            // create the root node
+            bn = new BloomTree(bf_filename, *hashes, num_hashes); 
+
+            bn->bf();
+            // if(bn->getBF() ==nullptr){
+            //     std::cerr <<bn->name() <<std::endl;
+            // }
+            tree_root = bn;
+            
+        // if we're adding a child
+        } else {
+            bn = new BloomTree(bf_filename, *hashes, num_hashes); 
+            bn->bf();
+
+            // // if(bn->getBF() ==nullptr){
+            // //     std::cerr <<"shitttttttt: "<<bn->name() <<std::endl;
+            // // }
+            while (path.size() > level) {
+                path.pop_back();
+            }
+            DIE_IF(level != path.size(), 
+                "Must increase level by <= 1");
+
+            if (path.back()->child(0) == nullptr) {
+                path.back()->set_child(0, bn);
+            } else if (path.back()->child(1) == nullptr) {
+                path.back()->set_child(1, bn);
+            } else {
+                DIE("Tried to add >= 2 children to a node.");
+            }
+        }
+        path.push_back(bn);
+    }
+    delete hashes;
+
+    std::cerr << "Read " << n << " nodes in Bloom Tree" << std::endl;
+    
+    return tree_root;
+}
+
+
 
 void write_bloom_tree_helper(std::ostream & out, BloomTree* root, int level=1) {
     std::string lstr(level, '*');

@@ -65,5 +65,5 @@ protected:
 
 sdsl::bit_vector* union_bv_fast(const sdsl::bit_vector & b1, const sdsl::bit_vector& b2);
 BF* load_bf_from_file(const std::string & fn, HashPair hp, int nh);
-HashPair* get_hash_function(const std::string & matrix_file, int & nh);
+// HashPair* get_hash_function(const std::string & matrix_file, int & nh);
 #endif

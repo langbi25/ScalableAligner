@@ -24,6 +24,8 @@ public:
     std::tuple<uint64_t, uint64_t> b_similarity(BloomTree* other) const;
     BF* bf() const;
 
+    BF* getBF() const;
+
     BloomTree* union_bloom_filters(const std::string & new_name, BloomTree* f2);
     void union_into(const BloomTree* other);
 
@@ -52,6 +54,9 @@ private:
 
 HashPair* get_hash_function(const std::string & matrix_file, int & nh);
 BloomTree* read_bloom_tree(const std::string & filename, bool read_hashes=true);
+
+BloomTree* read_bloom_tree_hash(const std::string & filename,const std::string & hash_filename) ;
+
 void write_bloom_tree(const std::string & outfile, BloomTree* root, const std::string & matrix_file);
 void write_compressed_bloom_tree(const std::string & outfile, BloomTree* root, const std::string & matrix_file);
 #endif

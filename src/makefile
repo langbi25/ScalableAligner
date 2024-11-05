@@ -9,8 +9,8 @@ LDFLAGS=$(shell pkg-config --libs sdsl-lite) $(shell pkg-config --libs jellyfish
 
 LIB		= -lz -lm -std=c++11 -pthread -lc -lbz2 -llzma -lstdc++  
 
-SOURCE		= main.cpp mapping.cpp bwt_fm_index.cpp KmerAnalysis.cpp nw_alignment.cpp tool.cpp alignment.cpp  mappingpe.cpp  SBT/Kmers.cpp SBT/BF.cpp SBT/BloomTree.cpp
-HEADER		= util.h task_queue/concurrentqueue.h task_queue/readerwriterqueue.h task_queue/atomicops.h SBT/Kmers.h SBT/BF.h SBT/BloomTree.h
+SOURCE		= main.cpp mapping.cpp bwt_fm_index.cpp KmerAnalysis.cpp nw_alignment.cpp tool.cpp alignment.cpp  mappingpe.cpp  SBT/Kmers.cpp SBT/BF.cpp SBT/BloomTree.cpp SBT/util.cpp SBT/Query.cpp
+HEADER		= util.h task_queue/concurrentqueue.h task_queue/readerwriterqueue.h task_queue/atomicops.h SBT/Kmers.h SBT/BF.h SBT/BloomTree.h SBT/util.h SBT/Query.h
 OBJECT		= $(SOURCE:%.cpp=%.o)
 %.o:		%.cpp $(HEADER)
 			$(CXX) $(FLAGS) -c $< $(LDFLAGS)
