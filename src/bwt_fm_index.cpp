@@ -2669,6 +2669,9 @@ void bwt_sa_batch(bwtint_t k,int interval,int match_len,int match_beg,vector<See
 }
 
 
+
+
+
 /*********************
  * Bidirectional BWT *
  *********************/
@@ -3887,17 +3890,6 @@ bwtSearchResult_t BWT_Search_BothSide1(uint8_t* seq, int start, int stop ,vector
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 	return bwtSearchResult;
 }
 
@@ -4186,3 +4178,424 @@ bwtSearchResult_t bwtExactMatchForward(uint8_t* str, int start, int rlen)
 
 
 
+
+size_t getline_block_buffer_2_aio(FILE *file  ,char *& buffer){
+
+	int last =pos1;
+	size_t len =0;
+	size_t ret =0;
+	int is_eof;
+
+	while(tmp1[pos1]!='\n' && pos1<right_broundry1){
+		pos1++;
+	}
+	len =pos1-last;
+
+
+
+	if(tmp1[pos1]=='\n'){
+		pos1++;
+		buffer =(tmp1+last);
+		return len;
+	}else{
+		if(is_end1){
+			return -1;
+		}
+		strncpy(tmp1, (tmp1+last), len);
+		tmp1[len]='\0';
+
+
+		while ( aio_error( &rd1 ) == EINPROGRESS ) ;
+		if ((ret = aio_return( &rd1 )) > 0) {
+
+			strncpy(tmp1+len, (const char *)rd1.aio_buf, ret);
+			tmp1[len+ret]='\0';
+			right_broundry1 =len+ret;
+			rd1.aio_offset +=ret;
+
+
+
+			rd1.aio_buf = tmp1_block_1+(block_size *((aio_pointer_1++)%2));
+			ret = aio_read(&rd1);
+		}else{
+			is_end1=1;
+			return -1;
+		}
+
+
+		pos1 =len;
+		last=0;
+		while(tmp1[pos1]!='\n'){
+			pos1++;
+		}
+		len =pos1-last;
+		pos1++;
+		__builtin_prefetch (tmp1+pos1, 0);
+
+	}
+	buffer =(tmp1+last);
+	return len;	
+}
+
+
+
+
+size_t getline_block_buffer_qual_aio_2(FILE *file  ,char *& buffer,int rlen){
+
+	int last =pos1;
+	size_t len =0;
+	size_t ret =0;
+
+
+
+	if(last+rlen <right_broundry1){
+		pos1 =last+rlen;
+		len =rlen;
+		buffer =(tmp1+last);
+		pos1++;
+		return len;
+	}else{
+		if(is_end1){
+			if(last+rlen ==right_broundry1){
+				pos1 =last+rlen;
+				len =rlen;
+				buffer =(tmp1+last);
+				pos1++;
+				return len;			
+			}
+			return -1;
+		}
+		len =right_broundry1-last;
+		strncpy(tmp1, (tmp1+last), len);	
+		tmp1[len]='\0';
+
+
+		while ( aio_error( &rd1 ) == EINPROGRESS ) ;
+		if ((ret = aio_return( &rd1 )) > 0) {
+
+			strncpy(tmp1+len, (const char *)rd1.aio_buf, ret);
+			tmp1[len+ret]='\0';
+			right_broundry1 =len+ret;
+			rd1.aio_offset +=ret;
+			rd1.aio_buf = tmp1_block_1+(block_size *((aio_pointer_1++)%2));
+			ret = aio_read(&rd1);
+		}else{
+			is_end1=1;
+			return -1;
+		}
+
+
+
+		buffer =(tmp1);
+		last=0;
+		pos1=rlen;
+		len =rlen;
+		pos1++;
+		return len;	
+	}
+
+}
+
+
+int GetNextEntry_Recycle_block_aio_2(FILE *file,ReadItem_t *read){
+	int p1, p2;
+	size_t len;
+	size_t size = 0;
+
+	
+	// ReadItem_t read;
+	char *buffer = NULL;
+
+	// read->header = read->seq = read->qual = NULL; 
+	read->rlen = 0;
+
+	if ((len = getline_block_buffer_2_aio(file,buffer)) != -1)	{	
+
+
+		p1 = IdentifyHeaderBegPos(buffer, len); 
+		p2 = IdentifyHeaderEndPos(buffer, len); len = p2 - p1;
+		
+		// read->header = new char[len + 1]; 
+		strncpy(read->header, (buffer + p1), len); 
+		read->header[len] = '\0';
+		//len = IdentifyHeaderBoundary(buffer, len) - 1; read.header = new char[len + 1];
+		//strncpy(read.header, (buffer + 1), len); read.header[len] = '0';
+		if (FastQFormat){
+			if ((read->rlen = getline_block_buffer_2_aio(file,buffer)) != -1){
+				// read->seq = new char[read->rlen+1];
+				strncpy(read->seq, buffer, read->rlen);
+
+				getline_block_buffer_2_aio(file,buffer); 
+
+				getline_block_buffer_qual_aio_2(file,buffer,read->rlen);
+
+				strncpy(read->qual, buffer, read->rlen);
+				// read->rlen -= 1; 
+				read->seq[read->rlen] = '\0'; 
+				read->qual[read->rlen] = '\0';
+
+				// fprintf(rfile_text,"%s\n",read->header);
+				// fprintf(rfile_text,"%s\n",read->seq);
+				// fprintf(rfile_text,"%s\n",read->qual);
+				// printf("read-header1:\t%s\n",read->header);
+				// printf("read-seq1:\t%s\n",read->seq);
+				// printf("read-qual1:\t%s\n",read->qual);
+			}else read->rlen = 0;
+		}else{
+			string seq;
+			while (true){
+				if ((len = getline(&buffer, &size, file)) == -1) break;
+				if (buffer[0] == '>'){
+					fseek(file, 0 - len, SEEK_CUR);
+					break;
+				}
+				else{
+					buffer[len - 1] = '\0'; seq += buffer;
+				}
+			}
+			if ((read->rlen = (int)seq.length()) > 0){
+				read->seq = new char[read->rlen + 1];
+				strcpy(read->seq, (char*)seq.c_str());
+				read->seq[read->rlen] = '\0';
+			}
+		}
+	}
+
+	return read->rlen;
+}
+
+
+size_t getline_block_buffer_2_aio_pair(FILE *file  ,char *& buffer){
+
+	int last =pos2;
+	size_t len =0;
+	size_t ret =0;
+
+
+
+
+	while(tmp2[pos2]!='\n' && pos2<right_broundry2){
+		pos2++;
+	}
+	len =pos2-last;
+
+
+	if(tmp2[pos2]=='\n'){
+		pos2++;
+		buffer =(tmp2+last);
+		return len;
+	}else{
+		if(is_end2){
+			return -1;
+		}
+		strncpy(tmp2, (tmp2+last), len);
+		tmp2[len]='\0';
+
+
+
+		while ( aio_error( &rd2 ) == EINPROGRESS ) ;
+		if ((ret = aio_return( &rd2 )) > 0) {
+
+			strncpy(tmp2+len, (const char *)rd2.aio_buf, ret);
+			tmp2[len+ret]='\0';
+			right_broundry2 =len+ret;
+			rd2.aio_offset +=ret;
+
+			rd2.aio_buf = tmp1_block_2+(block_size *((aio_pointer_2++)%2));
+			ret = aio_read(&rd2);
+		}else{
+			is_end2=1;
+			fprintf(stderr, "is_end2!!!\n");
+		}
+
+
+
+
+
+		pos2 =len;
+		last=0;
+		while(tmp2[pos2]!='\n'){
+			pos2++;
+		}
+		len =pos2-last;
+		pos2++;
+				__builtin_prefetch (tmp2+pos2, 0);
+
+	}
+
+	buffer =(tmp2+last);
+
+	return len;	
+
+}
+
+
+size_t getline_block_buffer_qual_2_aio_pair(FILE *file  ,char *& buffer,int rlen){
+
+	int last =pos2;
+	size_t len =0;
+	size_t ret =0;
+
+
+
+	if(last+rlen <right_broundry2){
+		pos2 =last+rlen;
+		len =rlen;
+		buffer =(tmp2+last);
+		pos2++;
+		return len;
+	}else{
+		if(is_end2){
+			if(last+rlen ==right_broundry2){
+				pos2 =last+rlen;
+				len =rlen;
+				buffer =(tmp2+last);
+				pos2++;
+				return len;	
+			}
+			return -1;
+		}
+		len =right_broundry2-last;
+		strncpy(tmp2, (tmp2+last), len);	
+		tmp2[len]='\0';
+
+
+		while ( aio_error( &rd2 ) == EINPROGRESS ) ;
+		if ((ret = aio_return( &rd2 )) > 0) {
+
+			strncpy(tmp2+len, (const char *)rd2.aio_buf, ret);
+			tmp2[len+ret]='\0';
+			right_broundry2 =len+ret;
+			rd2.aio_offset +=ret;
+
+			rd2.aio_buf = tmp1_block_2+(block_size *((aio_pointer_2++)%2));
+			ret = aio_read(&rd2);
+		}else{
+			is_end2=1;
+			fprintf(stderr, "is_end2!!!\n");
+		}
+
+
+
+		buffer =(tmp2);
+		last=0;
+		pos2=rlen;
+		len =rlen;
+		pos2++;
+		return len;	
+	}
+
+}
+
+
+int GetNextEntry_Recycle_block_2_aio_pair(FILE *file,ReadItem_t *read){
+	int p1, p2;
+	size_t len;
+	size_t size = 0;
+
+	
+	// ReadItem_t read;
+	char *buffer = NULL;
+
+	// read->header = read->seq = read->qual = NULL; 
+	read->rlen = 0;
+
+
+	if ((len = getline_block_buffer_2_aio_pair(file,buffer)) != -1)	{	
+	// if ((len =  getline(&buffer, &size, file)) != -1)	{	
+
+		p1 = IdentifyHeaderBegPos(buffer, len); 
+		p2 = IdentifyHeaderEndPos(buffer, len); len = p2 - p1;
+		
+		// read->header = new char[len + 1]; 
+		strncpy(read->header, (buffer + p1), len); 
+		read->header[len] = '\0';
+		//len = IdentifyHeaderBoundary(buffer, len) - 1; read.header = new char[len + 1];
+		//strncpy(read.header, (buffer + 1), len); read.header[len] = '0';
+		if (FastQFormat){
+			if ((read->rlen = getline_block_buffer_2_aio_pair(file,buffer)) != -1){
+
+			// if ((read->rlen  = getline(&buffer, &size, file)) != -1){
+
+
+				strncpy(read->seq, buffer, read->rlen);
+
+				getline_block_buffer_2_aio_pair(file,buffer); 
+
+				getline_block_buffer_qual_2_aio_pair(file,buffer,read->rlen);
+
+				
+				strncpy(read->qual, buffer, read->rlen);
+				read->seq[read->rlen] = '\0'; read->qual[read->rlen] = '\0';
+
+				// printf("read-header2:\t%s\n",read->header);
+				// printf("read-seq2:\t%s\n",read->seq);
+				// printf("read-qual2:\t%s\n",read->qual);
+
+				// fprintf(rfile_text,"%s\n",read->header);
+				// fprintf(rfile_text,"%s\n",read->seq);
+				// fprintf(rfile_text,"%s\n",read->qual);
+
+
+			}
+			else read->rlen = 0;
+		}
+		else
+		{
+			string seq;
+			while (true)
+			{
+				if ((len = getline(&buffer, &size, file)) == -1) break;
+				if (buffer[0] == '>')
+				{
+					fseek(file, 0 - len, SEEK_CUR);
+					break;
+				}
+				else
+				{
+					buffer[len - 1] = '\0'; seq += buffer;
+				}
+			}
+			if ((read->rlen = (int)seq.length()) > 0)
+			{
+				read->seq = new char[read->rlen + 1];
+				strcpy(read->seq, (char*)seq.c_str());
+				read->seq[read->rlen] = '\0';
+			}
+		}
+	}
+
+	return read->rlen;
+}
+
+
+int GetNextChunk_Block_aio_2(ReadItem_t *chunk,int bSepLibrary,int chunkSize, int flag,FILE *file, FILE *file2){
+
+	char* rseq;
+	int iCount = 0;
+
+	while (true){
+		if ((GetNextEntry_Recycle_block_aio_2(file,&chunk[iCount])) == 0) break;
+
+		iCount++;
+		if (bSepLibrary) GetNextEntry_Recycle_block_2_aio_pair(file2,&chunk[iCount]);
+		else GetNextEntry_Recycle_block_aio_2(file,&chunk[iCount]);
+
+		if (chunk[iCount].rlen == 0) break;
+		if (bPairEnd){
+			GetComplementarySeq2(chunk[iCount].rlen,chunk[iCount].seq);
+			if (FastQFormat){	
+				GetReverseSeq(chunk[iCount].rlen,chunk[iCount].qual);		
+			}
+		}
+
+		iCount++;
+		if (iCount == ReadChunkSize || (bPacBioData && iCount == 10)) break;
+	}
+
+
+
+
+	return iCount;
+
+}

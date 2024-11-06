@@ -60,10 +60,21 @@ size_t block_offset =0 ,output_len =0,fwrite_size =1048576*16;
 
 int sam_out_fd;	
 
+
+
+struct aiocb rd1,rd2;
+
+
 size_t offset1=0 ,offset2 =0; 
 int pos1=0,pos2=0;
-char *tmp1 = new char[block_size*2];
-char *tmp2 = new char[block_size*2];
+char *tmp1 ;
+char *tmp2 ;
+char *tmp1_block_1;
+char *tmp1_block_2;
+
+size_t aio_pointer_1=0;
+size_t aio_pointer_2=0;
+
 int right_broundry1=0,right_broundry2=0;
 
 int is_end1=0,is_end2=0;
@@ -261,6 +272,160 @@ int CountLines(string filename)
 
 //     }
 // }
+
+
+
+void   process_read_block_aio(Executor<QueueItem_t *> *executor){
+
+	int i =0,tail,head,pos =0;
+
+	int chunkSize=ReadChunkSize;
+
+
+
+	time_t	StartReadTime = time(NULL);
+
+
+
+
+	if(gzCompressed){
+
+		int ret1 =gzread(gzReadFileHandler1,tmp1,sizeof(char)* actual_block_size);
+		tmp1[actual_block_size] ='\0';
+		right_broundry1=ret1;
+		offset1+=ret1;
+		// fprintf(stderr, "tmp1:%s\n",tmp1);
+
+
+		if(bSepLibrary){
+			int ret2 =gzread(gzReadFileHandler2,tmp2, sizeof(char)* actual_block_size);
+			tmp2[ret2] ='\0';
+			right_broundry2=ret2;
+			offset2+=ret2;
+		// fprintf(stderr, "tmp2:%s\n",tmp2);
+
+		}	
+	}else{
+		//将rd结构体清空
+		bzero(&rd1,sizeof(struct aiocb));
+		//为rd.aio_buf分配空间
+		rd1.aio_buf = tmp1_block_1+(block_size *((aio_pointer_1++)%2));
+		//填充rd结构体
+		rd1.aio_fildes = fileno(ReadFileHandler1);
+		rd1.aio_nbytes =  block_size;
+		rd1.aio_offset = 0;
+
+		//将rd结构体清空
+		bzero(&rd2,sizeof(struct aiocb));
+		//为rd.aio_buf分配空间
+		rd2.aio_buf = tmp1_block_2+(block_size *((aio_pointer_2++)%2));
+		//填充rd结构体
+		rd2.aio_fildes = fileno(ReadFileHandler2);
+		rd2.aio_nbytes =  block_size;
+		rd2.aio_offset = 0;
+		
+
+
+		int ret1=aio_read(&rd1);
+		while ( aio_error( &rd1 ) == EINPROGRESS ) ;
+		if ((ret1 = aio_return( &rd1 )) > 0) {
+			
+			
+			strncpy(tmp1, (const char *)rd1.aio_buf, ret1);
+			tmp1[ret1]='\0';
+			right_broundry1 =ret1;
+			
+			rd1.aio_offset +=ret1;
+			rd1.aio_buf = tmp1_block_1+(block_size *((aio_pointer_1++)%2));
+			ret1 = aio_read(&rd1);
+		} else {
+			fprintf(stderr, "wrong1!!!\n"); 
+		}
+
+
+
+		if(bSepLibrary){
+			int ret2 =aio_read(&rd2);
+			while ( aio_error( &rd2 ) == EINPROGRESS ) ;
+			if ((ret2 = aio_return( &rd2 )) > 0) {
+				strncpy(tmp2, (const char *)rd2.aio_buf, ret2);
+				tmp2[ret2]='\0';
+				right_broundry2 =ret2;
+
+				rd2.aio_offset +=ret2;
+				rd2.aio_buf = tmp1_block_2+(block_size *((aio_pointer_2++)%2));
+				ret2 = aio_read(&rd2);			
+			} else {
+				fprintf(stderr, "wrong2!!!\n"); 
+			}
+		}		
+	}
+
+
+
+    while(1) {
+		QueueItem_t *queueItem;
+		if(!spsc_queue_input.try_dequeue(queueItem)){
+			// fprintf(stderr, "腾不出空间给读线程\n"); 
+			continue;
+		}else{
+			if(gzCompressed){
+				queueItem->readNum = gzGetNextChunk_block(bSepLibrary, gzReadFileHandler1, gzReadFileHandler2, queueItem->readArr,chunkSize,tail);
+
+			} else{
+				queueItem->readNum =GetNextChunk_Block_aio_2(queueItem->readArr,bSepLibrary ,chunkSize,tail ,ReadFileHandler1,ReadFileHandler2);
+			}
+			
+			// queueItem->readNum = GetNextChunk(queueItem->readArr,bSepLibrary ,chunkSize,tail,ReadFileHandler1,ReadFileHandler2);
+
+
+			if (iPaired >= 1000){
+				queueItem->EstDistance = (int)(iDistance / (iPaired >> 2));
+				queueItem->EstDistance = queueItem->EstDistance + (queueItem->EstDistance >> 1);
+			}else{
+				queueItem->EstDistance = maxInsertSize;
+			}  
+			//最后一批
+
+			if(queueItem->readNum==0){
+				break;
+			}else{
+				queueItem->index =i++;
+				executor->enqueue(queueItem);
+				process_num.fetch_add(1);
+				// fprintf(stderr, "读线程：data%d完成填装%d条序列  addr:%ld -%ld\n ",queueItem->index,queueItem->readNum , queueItem,queueItem->readArr);
+			}
+
+		}
+    }
+	free(tmp1);
+	free(tmp2);
+
+	free(tmp1_block_1);
+	free(tmp1_block_2);
+
+	if (gzCompressed){
+		if (gzReadFileHandler1 != NULL) gzclose(gzReadFileHandler1);
+		if (gzReadFileHandler2 != NULL) gzclose(gzReadFileHandler2);
+	}else{
+		if (ReadFileHandler1 != NULL) fclose(ReadFileHandler1);
+		if (ReadFileHandler2 != NULL) fclose(ReadFileHandler2);
+	}
+	long long readTime =(long long)(time(NULL) - StartReadTime);
+	fprintf(stderr, "\rAll the  reads have been read in %lld seconds.\taio\t%d\n",readTime,block_size);
+
+
+	// precision, recall
+	FILE *rfile = fopen("io_exp_2.csv", "a");
+
+	fprintf(rfile, "单线程异步:%d\t%s: %s\t%d\t%.2lld\n",block_size,readFile1.c_str(),outputFile,threadNum, readTime);
+
+	fclose(rfile);
+
+	// fclose(rfile_text);
+	printf("读线程结束\n");
+}
+
 
 void process_read(Executor<QueueItem_t *> *executor){
 
@@ -1902,7 +2067,10 @@ void processInit(){
 
     input_info.shutdown = output_info.shutdown = 0;
 
-
+	tmp1 = new char[block_size*2];
+	tmp2 = new char[block_size*2];
+	tmp1_block_1 =new char[block_size*2];
+	tmp1_block_2 =new char[block_size*2];
 	// for (MinSeedLength = 13; MinSeedLength < 20; MinSeedLength++) {
 	// 	if (TwoGenomeSize < pow(4, MinSeedLength)) {
 	// 		break;
@@ -1910,6 +2078,7 @@ void processInit(){
 	// }
 
 	MinSeedLength=20;
+	actual_block_size = block_size - 1;
 }
 
 void   processFree(){
@@ -2009,7 +2178,9 @@ void process(){
 	int real_threadNum =threadNum >=2 ? threadNum-2 :1;
     auto *executor = new Executor<QueueItem_t *>([&](QueueItem_t * read_address) {process_mapping(read_address);}, real_threadNum);
 	if(bBlockRead){
-		process_read_block(executor);		
+
+		process_read_block_aio(executor);
+		// process_read_block(executor);		
 	}else{
 		process_read(executor);
 

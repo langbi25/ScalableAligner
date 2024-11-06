@@ -38,7 +38,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/stat.h> // struct stat 需要的头文件
-
+#include<aio.h>
 #include <cstdio>
 
 #define likely(x)       __builtin_expect(!!(x), 1)
@@ -433,6 +433,13 @@ extern int right_broundry1,right_broundry2;
 
 extern int is_end1,is_end2;
 
+extern char *tmp1_block_1 ;
+extern char *tmp1_block_2 ;
+
+extern struct aiocb rd1,rd2;
+extern size_t aio_pointer_1;
+extern size_t aio_pointer_2;
+
 // extern FILE *rfile_text;
 // extern SamOutputItem_t *SamOutputVecBuffer;
 
@@ -482,7 +489,7 @@ extern bool RescueUnpairedAlignment(int EstDistance, ReadItem_t& r1, ReadItem_t&
 extern int GetNextChunk(ReadItem_t *chunk,int bSepLibrary,int chunkSize, int flag,FILE *file, FILE *file2);
 
 extern int GetNextChunk_Recycle(ReadItem_t *chunk,int bSepLibrary,int chunkSize, int flag,FILE *file, FILE *file2);
-
+extern int GetNextChunk_Block_aio_2(ReadItem_t *chunk,int bSepLibrary,int chunkSize, int flag,FILE *file, FILE *file2);
 extern int IdentifyHeaderBegPos(char* str, int len);
 extern int IdentifyHeaderEndPos(char* str, int len);
 extern int gzGetNextChunk_block(bool bSepLibrary, gzFile file, gzFile file2, ReadItem_t* ReadArr,int chunkSize, int flag);
