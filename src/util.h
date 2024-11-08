@@ -219,17 +219,15 @@ typedef struct
 	AlignmentReport_t* AlnReportArr;
 	int feature;
 	int gotN;
+	vector<int> match_chr;
 
+	std::vector<const BloomTree*> matching;
 
-	std::set<jellyfish::mer_dna> query_kmers;
-    std::vector<const BloomTree*> matching;
-    std::vector<float> weight;
 } ReadItem_t;
 
 typedef struct{
 
 	ReadItem_t* readArr;
-
 	vector<string> *SamOutputVec;
 	vector<AlignmentCandidate_t>* AlignmentVec1;
 	vector<SeedPair_t>* SeedPairVec1;
@@ -239,6 +237,7 @@ typedef struct{
 	int load;
 	int myUniqueMapping, myUnMapping, myPaired,myDistance;
 	int EstDistance;
+
 }QueueItem_t;
 
 
@@ -385,6 +384,18 @@ struct cmp_index
 // Global variables
 extern bwt_t *bwt;
 extern bwaidx_t *bwtIdx;
+
+extern bwt_t *bwt_chr[455];
+extern bwaidx_t *bwtIdx_chr[455];
+extern map<int,string>chr_map;
+extern map<string,int>map_chr;
+
+extern int  iChromsomeNum_chr[455];
+extern map<int64_t, int> ChrLocMap_chr[455];
+extern int64_t GenomeSize_chr[455], TwoGenomeSize_chr[455];
+extern vector<Chromosome_t> ChromosomeVec_chr[455];
+extern char *refSeq_chr[455];
+
 extern string indexPath,readFile1 ,readFile2;
 extern unsigned char nst_nt4_table[256];
 extern int64_t GenomeSize, TwoGenomeSize;
@@ -555,3 +566,5 @@ extern void nw_alignment_band(int m, string& s1, int n, string& s2);
 
 
 
+extern  void bwa_idx_load_batch(std::vector<std::string> lines);
+extern void RestoreReferenceInfo_batch();

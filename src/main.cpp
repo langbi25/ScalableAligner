@@ -9,6 +9,13 @@ extern "C"
 const char* VersionStr = "1.0.0";
 bwt_t *bwt;
 bwaidx_t *bwtIdx;
+
+map<int,string>chr_map;
+map<string,int>map_chr;
+bwt_t *bwt_chr[455];
+bwaidx_t *bwtIdx_chr[455];
+char* refSeq_chr[455];
+
 string indexPath,readFile1 ,readFile2;
 char *outputFile ,*indexFile ,*refSeq;
 int threadNum, maxInsertSize, MaxGaps, MinSeedLength, OutputFileFormat,OutputByOrder;
@@ -163,6 +170,41 @@ int main(int argc,char* argv[]){
             exit(0);
         }
         if (indexFile != NULL && CheckBWAIndexFiles(indexFile)) {
+			std::ifstream file("/home/b8402/22_liangjialang/dataset/file_paths.txt");
+			// 检查文件是否成功打开
+			if (!file.is_open()) {
+				std::cerr << "无法打开文件!" << std::endl;
+				return 1;
+			}
+			// 使用 vector 来存储每一行数据
+			std::vector<std::string> lines;
+			std::string line;
+
+			// 逐行读取文件
+			while (std::getline(file, line)) {
+				lines.push_back(line);  // 将每一行存入 vector
+			}
+
+			// 关闭文件
+			file.close();
+
+			// 打印数组中的内容
+			std::cout << "文件内容：" << std::endl;
+
+			bwa_idx_load_batch(lines);
+			for (int x =0;x<lines.size();x++) {
+				auto lastSlash = lines[x].find_last_of('/');
+				std::string fileName = lines[x].substr(lastSlash + 1);
+				// 找到文件名中 '.' 的位置，用于分割文件名和扩展名
+        		auto dot = fileName.find('.');
+				std::string chrPart = fileName.substr(0, dot);
+				chr_map.insert(pair<int,string>(x,chrPart));
+				map_chr.insert(pair<string,int>(chrPart,x));
+			}
+			// // 使用迭代器遍历并打印map的内容
+			// for (std::map<string, int>::iterator it = map_chr.begin(); it != map_chr.end(); ++it) {
+			// 	std::cout << "Key: " << it->first << ", Value: " << it->second << std::endl;
+			// }
             bwtIdx = bwa_idx_load(indexFile);
         }else{
 			fprintf(stdout, "Error! Please specify a valid reference index!\n");
@@ -176,9 +218,30 @@ int main(int argc,char* argv[]){
 		else
 		{
 			bwt = bwtIdx->bwt;
+			for(int x =0;x<455;x++){
+				bwt_chr[x] =bwtIdx_chr[x]->bwt;
+			}
+
+
 			RestoreReferenceInfo();
+
+			RestoreReferenceInfo_batch();
 			process();	
-			bwa_idx_destroy(bwtIdx);
+
+			for(int x =0;x<455;x++){
+				bwa_idx_destroy(bwtIdx_chr[x]);
+				vector<Chromosome_t>().swap(ChromosomeVec_chr[x]);
+				map<int64_t, int>().swap(ChrLocMap_chr[x]);	
+				if(refSeq_chr[x] !=NULL){
+					delete[] refSeq_chr[x];	
+				}	
+			}
+			// delete[] iChromsomeNum_chr;
+			// delete[] ChrLocMap_chr;
+			// delete[] GenomeSize_chr;
+			// delete[] TwoGenomeSize_chr;
+
+  			bwa_idx_destroy(bwtIdx);
 			if (refSeq != NULL) {
                delete[] refSeq; 
             }

@@ -9,7 +9,7 @@
 // float QUERY_THRESHOLD = 0.9;
 // HashPair* hashes;
 // UncompressedBF* bf;
-FILE *bffile;
+// FILE *bffile;
 
 BloomTree* root;
 
@@ -1854,18 +1854,29 @@ void  process_mapping( void * arg ) {
         for(i=0;i<queueItem->readNum;i++){
             queueItem->EncodeSeq[i] = new uint8_t[queueItem->readArr[i].rlen];
             EnCodeReadSeq(queueItem->readArr[i].rlen, queueItem->readArr[i].seq, queueItem->EncodeSeq[i],&queueItem->readArr[i].gotN);
-			qs.emplace_back(new QueryInfo(queueItem->readArr[i].seq));
+			qs.emplace_back(new QueryInfo(queueItem->readArr[i].seq,i));
         }
 		//在这里植入布隆过滤器
 
 		query_batch(root, qs);
 
 		for (auto& q : qs) {
-			fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
-			for (const auto& n : q->matching) {
-				fprintf(bffile, "%s\t",n->name().c_str() );
+			// fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
+			queueItem->readArr[q->num].matching =q->matching;
+			if(queueItem->readArr[q->num].matching.size() >0){
+				for(const auto& n : queueItem->readArr[q->num].matching){
+
+					int lastSlash = n->name().find_last_of('/');
+					std::string fileName = n->name().substr(lastSlash + 1);
+					int dot = fileName.find('.');
+					std::string chrPart = fileName.substr(0, dot);
+
+					queueItem->readArr[q->num].match_chr.push_back(map_chr[chrPart]);
+				}
 			}
-			fprintf(bffile, "\n" );
+
+			// fprintf(stderr, "%d\n",queueItem->readArr[q->num].match_chr.size() );
+
 		}
 
 
@@ -2162,7 +2173,7 @@ void process(){
 
 	// fclose(rfile_text);
 	// precision, recall
-	bffile = fopen("sbt_2_40.csv", "w");
+	// bffile = fopen("sbt_2_40.csv", "w");
 
 
 
@@ -2224,7 +2235,7 @@ void process(){
     processFree();
 
 	// delete bf;
-	fclose(bffile);
+	// fclose(bffile);
 
 
 	fprintf(stderr, "\rAll the %lld %s reads have been processed in %lld seconds.\n", (long long)iTotalReadNum, (bPairEnd? "paired-end":"single-end"), (long long)(time(NULL) - StartProcessTime));

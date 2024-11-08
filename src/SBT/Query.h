@@ -12,7 +12,9 @@
 extern float QUERY_THRESHOLD;
 
 struct QueryInfo {
-    QueryInfo(const std::string & q) : query(q), query_kmers(kmers_in_string(q)) {}
+    QueryInfo(const std::string & q ,int read_num) : query(q),num(read_num), query_kmers(kmers_in_string(q)) {}
+	QueryInfo(const std::string & q ) : query(q), query_kmers(kmers_in_string(q)) {}
+
     QueryInfo(const std::string & q, const std::string & w){
 	query = q;
 	query_kmers = kmers_in_string(q);
@@ -43,7 +45,8 @@ struct QueryInfo {
     	}
     }
     ~QueryInfo() {}
-   
+   	int num =0;
+
     std::string query;
     std::set<jellyfish::mer_dna> query_kmers;
     std::vector<const BloomTree*> matching;

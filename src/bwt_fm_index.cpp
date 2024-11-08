@@ -23,7 +23,10 @@ map<int64_t, int> ChrLocMap;
 int64_t GenomeSize, TwoGenomeSize;
 vector<Chromosome_t> ChromosomeVec;
 
-
+int iChromsomeNum_chr[455];
+map<int64_t, int> ChrLocMap_chr[455];
+int64_t GenomeSize_chr[455], TwoGenomeSize_chr[455];
+vector<Chromosome_t> ChromosomeVec_chr[455];
 
 
 void *IdvLoadReferenceSequences(void *arg)
@@ -47,6 +50,59 @@ void *IdvLoadReferenceSequences(void *arg)
 	return (void*)(1);
 }
 
+
+void *IdvLoadReferenceSequences_batch(void *arg)
+{
+	int base, *my_id;
+	int64_t fPos, rPos;
+
+	my_id = (int*)arg;
+
+	for(int i =*my_id;i<455;i+=threadNum){
+		for(fPos =0,rPos =TwoGenomeSize_chr[i] -fPos -1;fPos < GenomeSize_chr[i];fPos++,rPos--){
+			base = bwtIdx_chr[i]->pac[fPos >> 2] >> ((~fPos & 3) << 1) & 3;
+			switch (base)
+			{
+			case 0: refSeq_chr[i][fPos] = 'A'; refSeq_chr[i][rPos] = 'T'; break;
+			case 1: refSeq_chr[i][fPos] = 'C'; refSeq_chr[i][rPos] = 'G'; break;
+			case 2: refSeq_chr[i][fPos] = 'G'; refSeq_chr[i][rPos] = 'C'; break;
+			case 3: refSeq_chr[i][fPos] = 'T'; refSeq_chr[i][rPos] = 'A'; break;
+			default:refSeq_chr[i][fPos] = refSeq_chr[i][rPos] = 'N';
+			}
+		}
+	}
+	// for (fPos = *my_id, rPos = TwoGenomeSize - fPos - 1 ; fPos < GenomeSize; fPos += threadNum, rPos-= threadNum)
+	// {
+	// 	base = bwtIdx->pac[fPos >> 2] >> ((~fPos & 3) << 1) & 3;
+	// 	switch (base)
+	// 	{
+	// 	case 0: refSeq[fPos] = 'A'; refSeq[rPos] = 'T'; break;
+	// 	case 1: refSeq[fPos] = 'C'; refSeq[rPos] = 'G'; break;
+	// 	case 2: refSeq[fPos] = 'G'; refSeq[rPos] = 'C'; break;
+	// 	case 3: refSeq[fPos] = 'T'; refSeq[rPos] = 'A'; break;
+	// 	default:refSeq[fPos] = refSeq[rPos] = 'N';
+	// 	}
+	// }
+	return (void*)(1);
+}
+
+
+
+void RestoreReferenceSequences_batch()
+{
+	
+	int i, *JobIDArr = new int[threadNum];
+
+	pthread_t *ThreadArr = new pthread_t[threadNum];
+	for (i = 0; i < threadNum; i++)
+	{
+		JobIDArr[i] = i;
+		pthread_create(&ThreadArr[i], NULL, IdvLoadReferenceSequences_batch, JobIDArr + i);
+	}
+	for (i = 0; i < threadNum; i++) pthread_join(ThreadArr[i], NULL);
+
+	delete[] ThreadArr; delete[] JobIDArr;
+}
 
 void RestoreReferenceSequences()
 {
@@ -88,7 +144,7 @@ void RestoreReferenceInfo()
 		ChrLocMap.insert(make_pair(ChromosomeVec[i].FowardLocation + ChromosomeVec[i].len - 1, i));
 		ChrLocMap.insert(make_pair(ChromosomeVec[i].ReverseLocation + ChromosomeVec[i].len - 1, i));
 
-		// fprintf(stdout,"ChromosomeVec[%d]:%s  len =%d FowardLocation:%ld ReverseLocation:%ldn",i,ChromosomeVec[i].name,ChromosomeVec[i].len,ChromosomeVec[i].FowardLocation,ChromosomeVec[i].ReverseLocation);
+		// fprintf(stdout,"ChromosomeVec[%d]:%s  len =%d FowardLocation:%ld ReverseLocation:%ld\n",i,ChromosomeVec[i].name,ChromosomeVec[i].len,ChromosomeVec[i].FowardLocation,ChromosomeVec[i].ReverseLocation);
 	}
 	refSeq = new char[TwoGenomeSize + 1]; refSeq[TwoGenomeSize] = '\0';
 	RestoreReferenceSequences();
@@ -101,6 +157,61 @@ void RestoreReferenceInfo()
 	fclose(bwtIdx->bns->fp_pac);
 	fprintf(stderr, "Finish loading the reference sequences...\n");
 }
+
+
+void RestoreReferenceInfo_batch()
+{
+
+	for(int x =0;x<455;x++){
+		GenomeSize_chr[x] =bwtIdx_chr[x]->bns->l_pac;TwoGenomeSize_chr[x] =(GenomeSize_chr[x] << 1);
+		iChromsomeNum_chr[x] = bwtIdx_chr[x]->bns->n_seqs; ChromosomeVec_chr[x].resize(iChromsomeNum_chr[x]);
+	}
+
+	for(int x =0;x<455;x++){
+
+		// fprintf(stderr, "Load the reference sequences...\n");
+		fseek(bwtIdx_chr[x]->bns->fp_pac, 0, SEEK_SET);	
+		(void)fread(bwtIdx_chr[x]->pac, 1, GenomeSize_chr[x] / 4 + 1, bwtIdx_chr[x]->bns->fp_pac);
+
+		int64_t iTotalLength = 0;
+		for (int i = 0; i < iChromsomeNum_chr[x]; i++)
+		{
+			ChromosomeVec_chr[x][i].len = bwtIdx_chr[x]->bns->anns[i].len;
+			ChromosomeVec_chr[x][i].name = bwtIdx_chr[x]->bns->anns[i].name;
+
+			ChromosomeVec_chr[x][i].FowardLocation = iTotalLength; iTotalLength += ChromosomeVec_chr[x][i].len;
+			ChromosomeVec_chr[x][i].ReverseLocation = TwoGenomeSize_chr[x] - iTotalLength;
+
+			ChrLocMap_chr[x].insert(make_pair(ChromosomeVec_chr[x][i].FowardLocation + ChromosomeVec_chr[x][i].len - 1, i));
+			ChrLocMap_chr[x].insert(make_pair(ChromosomeVec_chr[x][i].ReverseLocation + ChromosomeVec_chr[x][i].len - 1, i));
+
+			// fprintf(stdout,"ChromosomeVec[%d]:%s  len =%d FowardLocation:%ld ReverseLocation:%ld\n",i,ChromosomeVec_chr[x][i].name,ChromosomeVec_chr[x][i].len,ChromosomeVec_chr[x][i].FowardLocation,ChromosomeVec_chr[x][i].ReverseLocation);
+		}
+
+
+	}
+
+	for(int x =0;x<455;x++){
+		refSeq_chr[x] = new char[TwoGenomeSize_chr[x] + 1]; refSeq_chr[x][TwoGenomeSize_chr[x]] = '\0';
+	}
+	RestoreReferenceSequences_batch();
+	
+	//fprintf(stdout, "\n");
+	//for (map<int64_t, int>::iterator iter = ChrLocMap.begin(); iter != ChrLocMap.end(); iter++) printf("chr%d: %lld\n", iter->second, iter->first);
+	//for (map<int64_t, int>::iterator iter = ChrLocMap.begin(); iter != ChrLocMap.end(); iter++) printf("Chr: %s [%ld -- %ld]\n", ChromosomeVec[iter->second].name, iter->first - ChromosomeVec[iter->second].len + 1, iter->first);
+	// if (bwtIdx->bns->fp_pac){
+			
+	// } 
+	for(int x =0;x<455;x++){
+
+		fclose(bwtIdx_chr[x]->bns->fp_pac);
+		// fprintf(stderr, "Finish loading the reference sequences...\n");
+
+	}
+	
+}
+
+
 void bns_destroy(bntseq_t *bns)
 {
 	if (bns == 0) return;
@@ -402,6 +513,33 @@ bwaidx_t *bwa_idx_load(const char *hint)
 	fprintf(stderr, "\n");
 
 	return idx;
+}
+
+
+void bwa_idx_load_batch(std::vector<std::string> lines)
+{
+
+	// fprintf(stderr, "Load the genome index files...");
+
+	for(int x =0;x<455;x++){
+		bwtIdx_chr[x] = (bwaidx_t*)calloc(1, sizeof(bwaidx_t));
+	}
+	for(int x =0;x<455;x++){
+		bwtIdx_chr[x]->bwt = bwa_idx_load_bwt(lines[x].c_str());
+	}
+	for(int x =0;x<455;x++){
+		bwtIdx_chr[x]->bns = bns_restore(lines[x].c_str());
+
+	}
+	for(int x =0;x<455;x++){
+		bwtIdx_chr[x]->pac = (uint8_t*)calloc(bwtIdx_chr[x]->bns->l_pac/4+1, 1);
+	}
+	for(int x =0;x<455;x++){
+		bwtIdx_chr[x]->hash = bwa_idx_load_hash(lines[x].c_str());
+
+	}
+	fprintf(stderr, "\n");
+
 }
 
 
