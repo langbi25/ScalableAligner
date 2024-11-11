@@ -1854,30 +1854,30 @@ void  process_mapping( void * arg ) {
         for(i=0;i<queueItem->readNum;i++){
             queueItem->EncodeSeq[i] = new uint8_t[queueItem->readArr[i].rlen];
             EnCodeReadSeq(queueItem->readArr[i].rlen, queueItem->readArr[i].seq, queueItem->EncodeSeq[i],&queueItem->readArr[i].gotN);
-			qs.emplace_back(new QueryInfo(queueItem->readArr[i].seq,i));
+			// qs.emplace_back(new QueryInfo(queueItem->readArr[i].seq,i));
         }
 		//在这里植入布隆过滤器
 
-		query_batch(root, qs);
+		// query_batch(root, qs);
 
-		for (auto& q : qs) {
-			// fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
-			queueItem->readArr[q->num].matching =q->matching;
-			if(queueItem->readArr[q->num].matching.size() >0){
-				for(const auto& n : queueItem->readArr[q->num].matching){
+		// for (auto& q : qs) {
+		// 	// fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
+		// 	queueItem->readArr[q->num].matching =q->matching;
+		// 	if(queueItem->readArr[q->num].matching.size() >0){
+		// 		for(const auto& n : queueItem->readArr[q->num].matching){
 
-					int lastSlash = n->name().find_last_of('/');
-					std::string fileName = n->name().substr(lastSlash + 1);
-					int dot = fileName.find('.');
-					std::string chrPart = fileName.substr(0, dot);
+		// 			int lastSlash = n->name().find_last_of('/');
+		// 			std::string fileName = n->name().substr(lastSlash + 1);
+		// 			int dot = fileName.find('.');
+		// 			std::string chrPart = fileName.substr(0, dot);
 
-					queueItem->readArr[q->num].match_chr.push_back(map_chr[chrPart]);
-				}
-			}
+		// 			queueItem->readArr[q->num].match_chr.push_back(map_chr[chrPart]);
+		// 		}
+		// 	}
 
-			// fprintf(stderr, "%d\n",queueItem->readArr[q->num].match_chr.size() );
+		// 	// fprintf(stderr, "%d\n",queueItem->readArr[q->num].match_chr.size() );
 
-		}
+		// }
 
 
 		for(i=0;i<queueItem->readNum;i++){
@@ -1962,9 +1962,9 @@ void  process_mapping( void * arg ) {
 
         // myUniqueMapping = myUnMapping = 0; 
     }
-	for (auto & p : qs) {
-		delete p;
-	}
+	// for (auto & p : qs) {
+	// 	delete p;
+	// }
 
 	for (i=0;i<queueItem->readNum;i++){
 		vector<SeedPair_t>().swap(queueItem->SeedPairVec1[i]);

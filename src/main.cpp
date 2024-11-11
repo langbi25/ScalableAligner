@@ -189,7 +189,7 @@ int main(int argc,char* argv[]){
 			file.close();
 
 			// 打印数组中的内容
-			std::cout << "文件内容：" << std::endl;
+			// std::cout << "文件内容：" << std::endl;
 
 			bwa_idx_load_batch(lines);
 			for (int x =0;x<lines.size();x++) {

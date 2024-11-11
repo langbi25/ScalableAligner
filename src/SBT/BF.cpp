@@ -183,7 +183,7 @@ void UncompressedBF::load() {
     if (stat(filename.c_str(), &buf) == -1){
         std::cerr << "Cant stat " << filename  << std::endl;
     } else {
-    std::cerr << "load file " << filename << " size " << buf.st_size << std::endl;
+    // std::cerr << "load file " << filename << " size " << buf.st_size << std::endl;
     }
 
 
