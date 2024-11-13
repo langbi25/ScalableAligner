@@ -285,6 +285,7 @@ void IdentifySeedPairs_FastMode_getN_chr(int rlen, uint8_t* EncodeSeq ,vector<Se
 
 	sort(SeedPairVec.begin(), SeedPairVec.end(), CompByPosDiff);
 
+	int chr =ChromosomeVecMap[chr_map[chrNo]];
 
 		for(int x =0;x<SeedPairVec.size();x++){
 			if(SeedPairVec[x].gPos <GenomeSize_chr[chrNo]){
@@ -293,16 +294,17 @@ void IdentifySeedPairs_FastMode_getN_chr(int rlen, uint8_t* EncodeSeq ,vector<Se
 				uint32_t FowardLocation =ChromosomeVec_chr[chrNo][ChromosomeIdx].FowardLocation;
 				uint32_t gPos = SeedPairVec[x].gPos + 1 - FowardLocation;
 				string chrName =ChromosomeVec_chr[chrNo][ChromosomeIdx].name;
-
-				std::cerr<<chr_map[chrNo] <<" " << bwt_chr[chrNo]->seq_len << " "<< bwtIdx_chr[chrNo]->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen << '\n';
+				uint32_t trueGpos =ChromosomeVec[chr].FowardLocation + SeedPairVec[x].gPos;
+				std::cerr<<chr_map[chrNo] <<" " << bwt_chr[chrNo]->seq_len << " "<< bwtIdx_chr[chrNo]->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen <<" " <<trueGpos<< '\n';
 
 			}else{
 				int ChromosomeIdx = ChrLocMap_chr[chrNo].lower_bound(SeedPairVec[x].gPos)->second;
 				uint32_t end_gPos =SeedPairVec[x].gPos+SeedPairVec[x].gLen-1;
 				uint32_t gPos = ChrLocMap_chr[chrNo].lower_bound(SeedPairVec[x].gPos)->first - end_gPos + 1;
 				string chrName =ChromosomeVec_chr[chrNo][ChromosomeIdx].name;
+				uint32_t trueGpos =SeedPairVec[x].gPos +GenomeSize_chr[chrNo]+ChromosomeVec[chr].ReverseLocation;
 
-				std::cerr<< chr_map[chrNo] <<" " << bwt_chr[chrNo]->seq_len << " "<< bwtIdx_chr[chrNo]->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen << '\n';
+				std::cerr<< chr_map[chrNo] <<" " << bwt_chr[chrNo]->seq_len << " "<< bwtIdx_chr[chrNo]->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen <<" " <<trueGpos<< '\n';
 
 			}
 
