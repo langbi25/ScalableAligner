@@ -27,7 +27,7 @@ int iChromsomeNum_chr[455];
 map<int64_t, int> ChrLocMap_chr[455];
 int64_t GenomeSize_chr[455], TwoGenomeSize_chr[455];
 vector<Chromosome_t> ChromosomeVec_chr[455];
-
+map<string, int> ChromosomeVecMap;
 
 void *IdvLoadReferenceSequences(void *arg)
 {
@@ -137,7 +137,7 @@ void RestoreReferenceInfo()
 	{
 		ChromosomeVec[i].len = bwtIdx->bns->anns[i].len;
 		ChromosomeVec[i].name = bwtIdx->bns->anns[i].name;
-
+		ChromosomeVecMap.insert(make_pair(bwtIdx->bns->anns[i].name,i));
 		ChromosomeVec[i].FowardLocation = iTotalLength; iTotalLength += ChromosomeVec[i].len;
 		ChromosomeVec[i].ReverseLocation = TwoGenomeSize - iTotalLength;
 
@@ -2806,7 +2806,37 @@ void bwt_sa_batch(bwtint_t k,int interval,int match_len,int match_beg,vector<See
 	// return sa + bwt->sa[k/bwt->sa_intv];
 }
 
+void bwt_sa_batch_chr(bwtint_t k,int interval,int match_len,int match_beg,vector<SeedPair_t> &SeedPairVec,int chrNo)
+{
+	bwtint_t sa = 0, mask = bwt_chr[chrNo]->sa_intv - 1;
 
+		// printf("%d\n",bwt->sa_intv);
+		uint64_t il =k;
+		for(uint64_t i=0;i<interval;i++){
+			sa =0;
+			k =il;
+			while (k & mask) {
+				++sa;
+				k = bwt_invPsi(bwt_chr[chrNo], k);
+			}
+			SeedPair_t SeedPair;
+			SeedPair.bSimple = true;
+			// pos_list[i] =(sa + bwt->sa[k/bwt->sa_intv]);
+			SeedPair.gPos =sa + bwt_chr[chrNo]->sa[k/bwt_chr[chrNo]->sa_intv];
+			SeedPair.rPos = match_beg;
+			SeedPair.PosDiff = SeedPair.gPos -SeedPair.rPos;
+			SeedPair.rLen = SeedPair.gLen = match_len;
+
+
+			SeedPairVec.push_back(SeedPair);			
+
+			il++;
+		}
+
+	/* without setting bwt->sa[0] = -1, the following line should be
+	   changed to (sa + bwt->sa[k/bwt->sa_intv]) % (bwt->seq_len + 1) */
+	// return sa + bwt->sa[k/bwt->sa_intv];
+}
 
 
 
@@ -3575,6 +3605,167 @@ bwtSearchResult_t BWT_Search_Forward_3(uint8_t* seq, int start, int stop ,int la
 	return bwtSearchResult;
 }
 
+bwtSearchResult_t BWT_Search_Forward_3_chr(uint8_t* seq, int start, int stop ,int last_rightset,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo)
+{
+	int i, pos, p,rightest ,leftest;
+	bwtintv_t ik, ok[4];
+	bwtint_t tk[4], tl[4];
+	bwtSearchResult_t bwtSearchResult;
+
+	p = (int)seq[start];
+	ik.x[0] = bwt_chr[chrNo]->L2[p] + 1;
+	ik.x[1] = bwt_chr[chrNo]->L2[3 - p] + 1;
+	//interval
+	ik.x[2] = bwt_chr[chrNo]->L2[p + 1] - bwt->L2[p];
+
+
+
+	bwtSearchResult.freq = 0; 
+	bwtSearchResult.LocArr = NULL;
+	bwtSearchResult.rightset=0;
+	bwtSearchResult.leftest=0;
+	bwtSearchResult.len=0;
+	for (pos = start + 1; pos < stop; pos++){
+		if (seq[pos] > 3) break;// ambiguous base
+		//正向匹配
+		bwt_2occ4(bwt_chr[chrNo], ik.x[1] - 1, ik.x[1] - 1 + ik.x[2], tk, tl);
+		for (i = 0; i != 4; ++i) {
+			ok[i].x[1] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+			ok[i].x[2] = tl[i] - tk[i];
+		}
+		ok[3].x[0] = ik.x[0] + (ik.x[1] <= bwt_chr[chrNo]->primary && ik.x[1] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+		ok[2].x[0] = ok[3].x[0] + ok[3].x[2];
+		ok[1].x[0] = ok[2].x[0] + ok[2].x[2];
+		ok[0].x[0] = ok[1].x[0] + ok[1].x[2];
+		i = 3 - seq[pos];
+		//interval
+		if (ok[i].x[2] == 0){
+			break; // extension ends
+		} else{
+			ik = ok[i];
+		} 
+	}
+
+	rightest =pos;
+	for (pos = start-1; pos >=0 ; pos--){
+		if (seq[pos] > 3) break;// ambiguous base
+		//反向匹配
+		bwt_2occ4(bwt_chr[chrNo], ik.x[0] - 1, ik.x[0] - 1 + ik.x[2], tk, tl);
+		for (i = 0; i != 4; ++i) {
+			ok[i].x[0] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+			ok[i].x[2] = tl[i] - tk[i];
+		}
+		ok[3].x[1] = ik.x[1] + (ik.x[0] <= bwt_chr[chrNo]->primary && ik.x[0] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+		ok[2].x[1] = ok[3].x[1] + ok[3].x[2];
+		ok[1].x[1] = ok[2].x[1] + ok[2].x[2];
+		ok[0].x[1] = ok[1].x[1] + ok[1].x[2];
+		i =  seq[pos];
+		//interval
+		if (ok[i].x[2] == 0){
+			break; // extension ends
+		} else{
+			ik = ok[i];
+		} 
+
+	}
+	leftest =pos+1;
+	//if (bDebugMode) printf("bwt_search: pos=%d len=%d, freq=%d\n", start, pos - start, (int)ik.x[2]);
+	if ((bwtSearchResult.len =rightest -leftest ) < MinSeedLength  || rightest <=last_rightset){
+		bwtSearchResult.rightset =last_rightset;
+		bwtSearchResult.freq = 0;
+	} else{
+		//if ((bwtSearchResult.freq = (int)ik.x[2]) <= (bPacBioData ? 1000 : OCC_Thr))
+		bwtSearchResult.rightset =rightest;
+		bwtSearchResult.leftest =leftest;
+		// fprintf(stderr,"wdnmd:start:%d %d-%d-%d --%ld\n",start ,leftest,rightest,last_rightset,ik.x[0]);
+
+		if ((bwtSearchResult.freq = (int)ik.x[2]) <= OCC_Thr){	
+			il_list->push_back(ik.x[0]);
+			interval_list->push_back(bwtSearchResult.freq);
+			match_len_list->push_back(bwtSearchResult.len);
+			match_beg_list->push_back(bwtSearchResult.leftest);
+			// bwtSearchResult.LocArr = new bwtint_t[bwtSearchResult.freq];
+			// for (i = 0; i < bwtSearchResult.freq; i++) bwtSearchResult.LocArr[i] = bwt_sa(ik.x[0] + i);
+		}else {
+			il_list->push_back(ik.x[0]);
+			interval_list->push_back(OCC_Thr);
+			match_len_list->push_back(bwtSearchResult.len);
+			match_beg_list->push_back(bwtSearchResult.leftest);
+		}
+	}
+	if(stop-rightest >=MinSeedLength){
+		int com_start =   rightest%10==0 ?  ((rightest-1)/10)*10   :  rightest/10*10;
+		int com_pos ;
+		int com_match_len=0;
+		int com_rightest=0;
+		int com_leftest =0;
+		p = (int)seq[com_start];
+		ik.x[0] = bwt_chr[chrNo]->L2[p] + 1;
+		ik.x[1] = bwt_chr[chrNo]->L2[3 - p] + 1;
+		//interval
+		ik.x[2] = bwt_chr[chrNo]->L2[p + 1] - bwt_chr[chrNo]->L2[p];
+
+		for (com_pos = com_start + 1; com_pos < stop; com_pos++){
+			if (seq[com_pos] > 3) break;// ambiguous base
+			//正向匹配
+			bwt_2occ4(bwt_chr[chrNo], ik.x[1] - 1, ik.x[1] - 1 + ik.x[2], tk, tl);
+			for (i = 0; i != 4; ++i) {
+				ok[i].x[1] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+				ok[i].x[2] = tl[i] - tk[i];
+			}
+			ok[3].x[0] = ik.x[0] + (ik.x[1] <= bwt_chr[chrNo]->primary && ik.x[1] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+			ok[2].x[0] = ok[3].x[0] + ok[3].x[2];
+			ok[1].x[0] = ok[2].x[0] + ok[2].x[2];
+			ok[0].x[0] = ok[1].x[0] + ok[1].x[2];
+			i = 3 - seq[com_pos];
+			//interval
+			if (ok[i].x[2] == 0){
+				break; // extension ends
+			} else{
+				ik = ok[i];
+			} 
+		}
+		com_rightest =com_pos;
+
+		for (com_pos = com_start-1; com_pos >=0 ; com_pos--){
+			if (seq[com_pos] > 3) break;// ambiguous base
+			//反向匹配
+			bwt_2occ4(bwt_chr[chrNo], ik.x[0] - 1, ik.x[0] - 1 + ik.x[2], tk, tl);
+			for (i = 0; i != 4; ++i) {
+				ok[i].x[0] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+				ok[i].x[2] = tl[i] - tk[i];
+			}
+			ok[3].x[1] = ik.x[1] + (ik.x[0] <= bwt_chr[chrNo]->primary && ik.x[0] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+			ok[2].x[1] = ok[3].x[1] + ok[3].x[2];
+			ok[1].x[1] = ok[2].x[1] + ok[2].x[2];
+			ok[0].x[1] = ok[1].x[1] + ok[1].x[2];
+			i =  seq[com_pos];
+			//interval
+			if (ok[i].x[2] == 0){
+				break; // extension ends
+			} else{
+				ik = ok[i];
+			} 
+		}
+		com_leftest =com_pos+1;
+		com_match_len =com_rightest -com_leftest;
+		//	fprintf(stderr,"nmsl:com_start:%d %d-%d-%d  --%ld\n",com_start,com_leftest,com_leftest+com_match_len,bwtSearchResult.rightset,ik.x[0]);
+
+		if(com_match_len >=MinSeedLength  && (com_rightest >bwtSearchResult.rightset )){
+			il_list->push_back(ik.x[0]);
+			if( (int)ik.x[2] <= OCC_Thr){
+				interval_list->push_back((int)ik.x[2]);
+			}else{
+				interval_list->push_back(OCC_Thr);
+			}
+			match_len_list->push_back(com_match_len);
+			match_beg_list->push_back(com_leftest);
+		}
+		bwtSearchResult.rightset =com_rightest;
+	}
+	
+	return bwtSearchResult;
+}
 
 
 
@@ -3596,8 +3787,9 @@ bwtSearchResult_t BWT_Search_Forward_hash(uint8_t* seq, int start, int stop ,int
 
 	ik.x[0] = bwtIdx->hash->kmer_hash[kmer_no].x[0];
 	ik.x[1] = bwtIdx->hash->kmer_hash[kmer_no].x[1];
-	ik.x[2] = bwtIdx->hash->kmer_hash[kmer_no].x[2];//interval
-			// printf("%ld\t%ld\t%ld\t",ik.x[0],ik.x[1],ik.x[2]);
+	ik.x[2] = bwtIdx->hash->kmer_hash[kmer_no].x[2];
+	//interval
+	// printf("%ld\t%ld\t%ld\t",ik.x[0],ik.x[1],ik.x[2]);
 
 
 	bwtSearchResult.freq = 0; 
@@ -3607,9 +3799,6 @@ bwtSearchResult_t BWT_Search_Forward_hash(uint8_t* seq, int start, int stop ,int
 	bwtSearchResult.len=0;
 
 	if(ik.x[2] !=0){
-
-
-		
 		for (pos = start + 1; pos < stop; pos++){
 			if (seq[pos] > 3) break;// ambiguous base
 			//正向匹配
@@ -3629,7 +3818,6 @@ bwtSearchResult_t BWT_Search_Forward_hash(uint8_t* seq, int start, int stop ,int
 			} else{
 				ik = ok[i];
 				// printf("pos:%d %d %ld %ld %ld\n",pos,seq[pos],ik.x[0],ik.x[1],ik.x[2]);
-
 			} 
 		}
 
@@ -3657,10 +3845,6 @@ bwtSearchResult_t BWT_Search_Forward_hash(uint8_t* seq, int start, int stop ,int
 		}
 		leftest =pos+1;
 	}
-
-
-	
-
 
 	//if (bDebugMode) printf("bwt_search: pos=%d len=%d, freq=%d\n", start, pos - start, (int)ik.x[2]);
 		// printf("bwt_search: pos=%d len=%d, freq=%d\n", start, rightest -leftest, (int)ik.x[2]);
@@ -3778,6 +3962,196 @@ bwtSearchResult_t BWT_Search_Forward_hash(uint8_t* seq, int start, int stop ,int
 
 
 
+bwtSearchResult_t BWT_Search_Forward_hash_chr(uint8_t* seq, int start, int stop ,int last_rightset,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo)
+{
+	int i, pos=0, p,rightest=0 ,leftest=0,temp_start;
+	bwtintv_t ik, ok[4];
+	bwtint_t tk[4], tl[4];
+	bwtSearchResult_t bwtSearchResult;
+	// printf("forward33333333\n");
+	uint32_t kmer_no =(int)seq[start] & 0b11;
+	int j =1;
+	for(j=1;j<10;j++){
+		kmer_no = (kmer_no<<2) +((int)seq[start+j] & 0b11);
+	}
+
+	temp_start =start;
+	start +=9;
+
+	ik.x[0] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[0];
+	ik.x[1] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[1];
+	ik.x[2] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[2];
+	//interval
+	// printf("%ld\t%ld\t%ld\t",ik.x[0],ik.x[1],ik.x[2]);
+
+
+	bwtSearchResult.freq = 0; 
+	bwtSearchResult.LocArr = NULL;
+	bwtSearchResult.rightset=0;
+	bwtSearchResult.leftest=0;
+	bwtSearchResult.len=0;
+
+	if(ik.x[2] !=0){
+		for (pos = start + 1; pos < stop; pos++){
+			if (seq[pos] > 3) break;// ambiguous base
+			//正向匹配
+			bwt_2occ4(bwt_chr[chrNo], ik.x[1] - 1, ik.x[1] - 1 + ik.x[2], tk, tl);
+			for (i = 0; i != 4; ++i) {
+				ok[i].x[1] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+				ok[i].x[2] = tl[i] - tk[i];
+			}
+			ok[3].x[0] = ik.x[0] + (ik.x[1] <= bwt_chr[chrNo]->primary && ik.x[1] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+			ok[2].x[0] = ok[3].x[0] + ok[3].x[2];
+			ok[1].x[0] = ok[2].x[0] + ok[2].x[2];
+			ok[0].x[0] = ok[1].x[0] + ok[1].x[2];
+			i = 3 - seq[pos];
+			//interval
+			if (ok[i].x[2] == 0){
+				break; // extension ends
+			} else{
+				ik = ok[i];
+				// printf("pos:%d %d %ld %ld %ld\n",pos,seq[pos],ik.x[0],ik.x[1],ik.x[2]);
+			} 
+		}
+
+		rightest =pos;
+		for (pos = temp_start-1; pos >=0 ; pos--){
+			if (seq[pos] > 3) break;// ambiguous base
+			//反向匹配
+			bwt_2occ4(bwt_chr[chrNo], ik.x[0] - 1, ik.x[0] - 1 + ik.x[2], tk, tl);
+			for (i = 0; i != 4; ++i) {
+				ok[i].x[0] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+				ok[i].x[2] = tl[i] - tk[i];
+			}
+			ok[3].x[1] = ik.x[1] + (ik.x[0] <= bwt_chr[chrNo]->primary && ik.x[0] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+			ok[2].x[1] = ok[3].x[1] + ok[3].x[2];
+			ok[1].x[1] = ok[2].x[1] + ok[2].x[2];
+			ok[0].x[1] = ok[1].x[1] + ok[1].x[2];
+			i =  seq[pos];
+			//interval
+			if (ok[i].x[2] == 0){
+				break; // extension ends
+			} else{
+				ik = ok[i];
+			} 
+
+		}
+		leftest =pos+1;
+	}
+
+	//if (bDebugMode) printf("bwt_search: pos=%d len=%d, freq=%d\n", start, pos - start, (int)ik.x[2]);
+		// printf("bwt_search: pos=%d len=%d, freq=%d\n", start, rightest -leftest, (int)ik.x[2]);
+	if ((bwtSearchResult.len =rightest -leftest ) < MinSeedLength  || rightest <=last_rightset){
+		bwtSearchResult.rightset =last_rightset;
+		bwtSearchResult.freq = 0;
+	} else{
+		//if ((bwtSearchResult.freq = (int)ik.x[2]) <= (bPacBioData ? 1000 : OCC_Thr))
+		bwtSearchResult.rightset =rightest;
+		bwtSearchResult.leftest =leftest;
+		// fprintf(stderr,"wdnmd:start:%d %d-%d-%d --%ld\n",start ,leftest,rightest,last_rightset,ik.x[0]);
+
+		if ((bwtSearchResult.freq = (int)ik.x[2]) <= OCC_Thr){	
+			il_list->push_back(ik.x[0]);
+			interval_list->push_back(bwtSearchResult.freq);
+			match_len_list->push_back(bwtSearchResult.len);
+			match_beg_list->push_back(bwtSearchResult.leftest);
+			// bwtSearchResult.LocArr = new bwtint_t[bwtSearchResult.freq];
+			// for (i = 0; i < bwtSearchResult.freq; i++) bwtSearchResult.LocArr[i] = bwt_sa(ik.x[0] + i);
+		}else {
+			il_list->push_back(ik.x[0]);
+			interval_list->push_back(OCC_Thr);
+			match_len_list->push_back(bwtSearchResult.len);
+			match_beg_list->push_back(bwtSearchResult.leftest);
+		}
+	}
+
+
+	if(stop-rightest >=MinSeedLength){
+		int com_start =   rightest%10==0 ?  ((rightest-1)/10)*10   :  rightest/10*10;
+		int tmp_Start =com_start;
+		int com_pos ;
+		int com_match_len=0;
+		int com_rightest=0;
+		int com_leftest =0;
+
+		kmer_no =(int)seq[com_start] & 0b11;
+		// printf("%d",kmer_no);
+		for(int j=1;j<10;j++){
+				// printf("%d",(int)seq[start+i]);
+			kmer_no = (kmer_no<<2) +((int)seq[com_start+j] & 0b11);
+		}
+		com_start +=9;
+		ik.x[0] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[0];
+		ik.x[1] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[1];
+		ik.x[2] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[2];//interval
+
+		// p = (int)seq[com_start];
+		// ik.x[0] = bwt->L2[p] + 1;
+		// ik.x[1] = bwt->L2[3 - p] + 1;
+		// //interval
+		// ik.x[2] = bwt->L2[p + 1] - bwt->L2[p];
+
+		for (com_pos = com_start + 1; com_pos < stop; com_pos++){
+			if (seq[com_pos] > 3) break;// ambiguous base
+			//正向匹配
+			bwt_2occ4(bwt_chr[chrNo], ik.x[1] - 1, ik.x[1] - 1 + ik.x[2], tk, tl);
+			for (i = 0; i != 4; ++i) {
+				ok[i].x[1] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+				ok[i].x[2] = tl[i] - tk[i];
+			}
+			ok[3].x[0] = ik.x[0] + (ik.x[1] <= bwt_chr[chrNo]->primary && ik.x[1] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+			ok[2].x[0] = ok[3].x[0] + ok[3].x[2];
+			ok[1].x[0] = ok[2].x[0] + ok[2].x[2];
+			ok[0].x[0] = ok[1].x[0] + ok[1].x[2];
+			i = 3 - seq[com_pos];
+			//interval
+			if (ok[i].x[2] == 0){
+				break; // extension ends
+			} else{
+				ik = ok[i];
+			} 
+		}
+		com_rightest =com_pos;
+
+		for (com_pos = tmp_Start-1; com_pos >=0 ; com_pos--){
+			if (seq[com_pos] > 3) break;// ambiguous base
+			//反向匹配
+			bwt_2occ4(bwt_chr[chrNo], ik.x[0] - 1, ik.x[0] - 1 + ik.x[2], tk, tl);
+			for (i = 0; i != 4; ++i) {
+				ok[i].x[0] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+				ok[i].x[2] = tl[i] - tk[i];
+			}
+			ok[3].x[1] = ik.x[1] + (ik.x[0] <= bwt_chr[chrNo]->primary && ik.x[0] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+			ok[2].x[1] = ok[3].x[1] + ok[3].x[2];
+			ok[1].x[1] = ok[2].x[1] + ok[2].x[2];
+			ok[0].x[1] = ok[1].x[1] + ok[1].x[2];
+			i =  seq[com_pos];
+			//interval
+			if (ok[i].x[2] == 0){
+				break; // extension ends
+			} else{
+				ik = ok[i];
+			} 
+		}
+		com_leftest =com_pos+1;
+		com_match_len =com_rightest -com_leftest;
+		//	fprintf(stderr,"nmsl:com_start:%d %d-%d-%d  --%ld\n",com_start,com_leftest,com_leftest+com_match_len,bwtSearchResult.rightset,ik.x[0]);
+
+		if(com_match_len >=MinSeedLength  && (com_rightest >bwtSearchResult.rightset )){
+			il_list->push_back(ik.x[0]);
+			if( (int)ik.x[2] <= OCC_Thr){
+				interval_list->push_back((int)ik.x[2]);
+			}else{
+				interval_list->push_back(OCC_Thr);
+			}
+			match_len_list->push_back(com_match_len);
+			match_beg_list->push_back(com_leftest);
+		}
+		bwtSearchResult.rightset =com_rightest;
+	}
+	
+	return bwtSearchResult;
+}
 
 
 
@@ -4031,64 +4405,6 @@ bwtSearchResult_t BWT_Search_BothSide1(uint8_t* seq, int start, int stop ,vector
 	return bwtSearchResult;
 }
 
-// bwtSearchResult_t BWT_Search_Backward(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list)
-// {
-// 	int i, pos, p;
-// 	bwtintv_t ik, ok[4];
-// 	bwtint_t tk[4], tl[4];
-// 	bwtSearchResult_t bwtSearchResult;
-// 	int right =start;
-
-// 	p = (int)seq[right-1];
-// 	ik.x[0] = bwt->L2[p] + 1;
-// 	ik.x[1] = bwt->L2[3 - p] + 1;
-// 	//interval
-// 	ik.x[2] = bwt->L2[p + 1] - bwt->L2[p];
-
-// 	bwtSearchResult.freq = 0; 
-// 	bwtSearchResult.LocArr = NULL;
-	
-
-// 	for (pos = right-2; pos >=0 ; pos--){
-// 		if (seq[pos] > 3) break;// ambiguous base
-// 		//反向匹配
-// 		bwt_2occ4(bwt, ik.x[0] - 1, ik.x[0] - 1 + ik.x[2], tk, tl);
-// 		for (i = 0; i != 4; ++i) {
-// 			ok[i].x[0] = bwt->L2[i] + 1 + tk[i];
-// 			ok[i].x[2] = tl[i] - tk[i];
-// 		}
-// 		ok[3].x[1] = ik.x[1] + (ik.x[0] <= bwt->primary && ik.x[0] + ik.x[2] - 1 >= bwt->primary);
-// 		ok[2].x[1] = ok[3].x[1] + ok[3].x[2];
-// 		ok[1].x[1] = ok[2].x[1] + ok[2].x[2];
-// 		ok[0].x[1] = ok[1].x[1] + ok[1].x[2];
-
-// 		i =  seq[pos];
-// 		//interval
-// 		if (ok[i].x[2] == 0){
-// 			break; // extension ends
-// 		} else{
-// 			ik = ok[i];
-// 		} 
-// 	}
-	
-// 	//if (bDebugMode) printf("bwt_search: pos=%d len=%d, freq=%d\n", start, pos - start, (int)ik.x[2]);
-// 	if ((bwtSearchResult.len = start - pos) < MinSeedLength){
-// 		bwtSearchResult.freq = 0;
-// 	} else{
-// 		//if ((bwtSearchResult.freq = (int)ik.x[2]) <= (bPacBioData ? 1000 : OCC_Thr))
-// 		if ((bwtSearchResult.freq = (int)ik.x[2]) <= OCC_Thr)
-// 		{	
-// 			il_list->push_back(ik.x[0]);
-// 			interval_list->push_back(bwtSearchResult.freq);
-// 			match_len_list->push_back(bwtSearchResult.len);
-// 			match_beg_list->push_back(start);
-// 			// bwtSearchResult.LocArr = new bwtint_t[bwtSearchResult.freq];
-// 			// for (i = 0; i < bwtSearchResult.freq; i++) bwtSearchResult.LocArr[i] = bwt_sa(ik.x[0] + i);
-// 		}
-// 		else bwtSearchResult.freq = 0;
-// 	}
-// 	return bwtSearchResult;
-// }
 
 bwtSearchResult_t BWT_Search_Backward_hash(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list)
 {
@@ -4170,6 +4486,85 @@ bwtSearchResult_t BWT_Search_Backward_hash(uint8_t* seq, int start, int stop ,ve
 	return bwtSearchResult;
 }
 
+bwtSearchResult_t BWT_Search_Backward_hash_chr(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo)
+{
+	int i, pos, p;
+	bwtintv_t ik, ok[4];
+	bwtint_t tk[4], tl[4];
+	bwtSearchResult_t bwtSearchResult;
+	// int right =start;
+
+	// p = (int)seq[right-1];
+	// ik.x[0] = bwt->L2[p] + 1;
+	// ik.x[1] = bwt->L2[3 - p] + 1;
+	// //interval
+	// ik.x[2] = bwt->L2[p + 1] - bwt->L2[p];
+
+	bwtSearchResult.freq = 0; 
+	bwtSearchResult.LocArr = NULL;
+	bwtSearchResult.len =1;	
+
+	int right =start-10;
+	uint32_t kmer_no =(int)seq[right] & 0b11;		// printf("%d",kmer_no);
+	for(int i=1;i<10;i++){
+		// printf("%d",(int)seq[start+i]);
+		kmer_no = (kmer_no<<2) +((int)seq[right+i] & 0b11);
+	}
+
+	ik.x[0] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[0];
+	ik.x[1] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[1];
+	ik.x[2] = bwtIdx_chr[chrNo]->hash->kmer_hash[kmer_no].x[2];//interval
+	if(ik.x[2] >0){
+		bwtSearchResult.freq = ik.x[2]; 
+		bwtSearchResult.LocArr = NULL;
+		bwtSearchResult.len =10;	
+
+
+		for (pos = right-1; pos >=0 ; pos--){
+			if (seq[pos] > 3) break;// ambiguous base
+			//反向匹配
+			bwt_2occ4(bwt_chr[chrNo], ik.x[0] - 1, ik.x[0] - 1 + ik.x[2], tk, tl);
+			for (i = 0; i != 4; ++i) {
+				ok[i].x[0] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+				ok[i].x[2] = tl[i] - tk[i];
+			}
+			ok[3].x[1] = ik.x[1] + (ik.x[0] <= bwt_chr[chrNo]->primary && ik.x[0] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+			ok[2].x[1] = ok[3].x[1] + ok[3].x[2];
+			ok[1].x[1] = ok[2].x[1] + ok[2].x[2];
+			ok[0].x[1] = ok[1].x[1] + ok[1].x[2];
+			bwtSearchResult.len ++;
+			i =  seq[pos];
+			//interval
+			if (ok[i].x[2] == 0){
+				break; // extension ends
+			} else{
+				ik = ok[i];
+			} 
+		}
+		pos = pos <0 ? 0: pos;
+		bwtSearchResult.il =(ik.x[0]);
+		bwtSearchResult.freq = (int)ik.x[2];
+	}
+
+	
+	if (bwtSearchResult.len  < MinSeedLength){
+		bwtSearchResult.freq = 0;
+	} else{
+		//if ((bwtSearchResult.freq = (int)ik.x[2]) <= (bPacBioData ? 1000 : OCC_Thr))
+		if ((bwtSearchResult.freq = (int)ik.x[2]) <= OCC_Thr)
+		{	
+			il_list->push_back(ik.x[0]);
+			interval_list->push_back(bwtSearchResult.freq);
+			match_len_list->push_back(bwtSearchResult.len);
+			match_beg_list->push_back(start-bwtSearchResult.len);
+			// bwtSearchResult.LocArr = new bwtint_t[bwtSearchResult.freq];
+			// for (i = 0; i < bwtSearchResult.freq; i++) bwtSearchResult.LocArr[i] = bwt_sa(ik.x[0] + i);
+		}
+		else bwtSearchResult.freq = 0;
+	}
+
+	return bwtSearchResult;
+}
 
 
 
@@ -4235,7 +4630,67 @@ bwtSearchResult_t BWT_Search_Backward(uint8_t* seq, int start, int stop ,vector<
 	return bwtSearchResult;
 }
 
+bwtSearchResult_t BWT_Search_Backward_chr(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo)
+{
+	int i, pos, p;
+	bwtintv_t ik, ok[4];
+	bwtint_t tk[4], tl[4];
+	bwtSearchResult_t bwtSearchResult;
+	int right =start;
 
+	p = (int)seq[right-1];
+	ik.x[0] = bwt_chr[chrNo]->L2[p] + 1;
+	ik.x[1] = bwt_chr[chrNo]->L2[3 - p] + 1;
+	//interval
+	ik.x[2] = bwt_chr[chrNo]->L2[p + 1] - bwt_chr[chrNo]->L2[p];
+
+	bwtSearchResult.freq = 0; 
+	bwtSearchResult.LocArr = NULL;
+	bwtSearchResult.len =1;	
+
+	for (pos = right-2; pos >=0 ; pos--){
+		if (seq[pos] > 3) break;// ambiguous base
+		//反向匹配
+		bwt_2occ4(bwt_chr[chrNo], ik.x[0] - 1, ik.x[0] - 1 + ik.x[2], tk, tl);
+		for (i = 0; i != 4; ++i) {
+			ok[i].x[0] = bwt_chr[chrNo]->L2[i] + 1 + tk[i];
+			ok[i].x[2] = tl[i] - tk[i];
+		}
+		ok[3].x[1] = ik.x[1] + (ik.x[0] <= bwt_chr[chrNo]->primary && ik.x[0] + ik.x[2] - 1 >= bwt_chr[chrNo]->primary);
+		ok[2].x[1] = ok[3].x[1] + ok[3].x[2];
+		ok[1].x[1] = ok[2].x[1] + ok[2].x[2];
+		ok[0].x[1] = ok[1].x[1] + ok[1].x[2];
+		bwtSearchResult.len ++;
+		i =  seq[pos];
+		//interval
+		if (ok[i].x[2] == 0){
+			break; // extension ends
+		} else{
+			ik = ok[i];
+		} 
+	}
+	pos = pos <0 ? 0: pos;
+	bwtSearchResult.il =(ik.x[0]);
+	bwtSearchResult.freq = (int)ik.x[2];
+	
+	if (bwtSearchResult.len  < MinSeedLength){
+		bwtSearchResult.freq = 0;
+	} else{
+		//if ((bwtSearchResult.freq = (int)ik.x[2]) <= (bPacBioData ? 1000 : OCC_Thr))
+		if ((bwtSearchResult.freq = (int)ik.x[2]) <= OCC_Thr)
+		{	
+			il_list->push_back(ik.x[0]);
+			interval_list->push_back(bwtSearchResult.freq);
+			match_len_list->push_back(bwtSearchResult.len);
+			match_beg_list->push_back(start-bwtSearchResult.len);
+			// bwtSearchResult.LocArr = new bwtint_t[bwtSearchResult.freq];
+			// for (i = 0; i < bwtSearchResult.freq; i++) bwtSearchResult.LocArr[i] = bwt_sa(ik.x[0] + i);
+		}
+		else bwtSearchResult.freq = 0;
+	}
+
+	return bwtSearchResult;
+}
 
 
 

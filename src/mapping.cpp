@@ -1854,36 +1854,41 @@ void  process_mapping( void * arg ) {
         for(i=0;i<queueItem->readNum;i++){
             queueItem->EncodeSeq[i] = new uint8_t[queueItem->readArr[i].rlen];
             EnCodeReadSeq(queueItem->readArr[i].rlen, queueItem->readArr[i].seq, queueItem->EncodeSeq[i],&queueItem->readArr[i].gotN);
-			// qs.emplace_back(new QueryInfo(queueItem->readArr[i].seq,i));
+			qs.emplace_back(new QueryInfo(queueItem->readArr[i].seq,i));
         }
 		//在这里植入布隆过滤器
 
-		// query_batch(root, qs);
+		query_batch(root, qs);
 
-		// for (auto& q : qs) {
-		// 	// fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
-		// 	queueItem->readArr[q->num].matching =q->matching;
-		// 	if(queueItem->readArr[q->num].matching.size() >0){
-		// 		for(const auto& n : queueItem->readArr[q->num].matching){
+		for (auto& q : qs) {
+			// fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
+			queueItem->readArr[q->num].matching =q->matching;
+			if(queueItem->readArr[q->num].matching.size() >0){
+				for(const auto& n : queueItem->readArr[q->num].matching){
 
-		// 			int lastSlash = n->name().find_last_of('/');
-		// 			std::string fileName = n->name().substr(lastSlash + 1);
-		// 			int dot = fileName.find('.');
-		// 			std::string chrPart = fileName.substr(0, dot);
+					int lastSlash = n->name().find_last_of('/');
+					std::string fileName = n->name().substr(lastSlash + 1);
+					int dot = fileName.find('.');
+					std::string chrPart = fileName.substr(0, dot);
 
-		// 			queueItem->readArr[q->num].match_chr.push_back(map_chr[chrPart]);
-		// 		}
-		// 	}
+					queueItem->readArr[q->num].match_chr.push_back(map_chr[chrPart]);
+								// fprintf(stderr, "%s:%d\t",chrPart.c_str(),map_chr[chrPart] );
 
-		// 	// fprintf(stderr, "%d\n",queueItem->readArr[q->num].match_chr.size() );
+				}
+			}
 
-		// }
+			fprintf(stderr, "%d\n",queueItem->readArr[q->num].match_chr.size() );
+
+		}
+		for(i=0;i<queueItem->readNum;i++){
+			IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,123);
+		}
+
 
 
 		for(i=0;i<queueItem->readNum;i++){
 			IdentifySeedPairs_FastMode_getN(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN);
 			GenerateAlignmentCandidateForIlluminaSeq_Recycle(queueItem->readArr[i].rlen, queueItem->SeedPairVec1[i],queueItem->AlignmentVec1[i]);
-			
 		}
 		for(i=0;i<queueItem->readNum;i++){
 			delete[] queueItem->EncodeSeq[i];
@@ -1914,11 +1919,7 @@ void  process_mapping( void * arg ) {
 
 			CheckPairedFinalAlignments(queueItem->readArr[i], queueItem->readArr[j]);
 
-			
-		
 			SetPairedAlignmentFlag(queueItem->readArr[i], queueItem->readArr[j]);
-
-
 
 			EvaluateMAPQ(queueItem->readArr[i]); 
 			EvaluateMAPQ(queueItem->readArr[j]);

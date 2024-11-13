@@ -395,6 +395,7 @@ extern map<int64_t, int> ChrLocMap_chr[455];
 extern int64_t GenomeSize_chr[455], TwoGenomeSize_chr[455];
 extern vector<Chromosome_t> ChromosomeVec_chr[455];
 extern char *refSeq_chr[455];
+extern map<string, int> ChromosomeVecMap;
 
 extern string indexPath,readFile1 ,readFile2;
 extern unsigned char nst_nt4_table[256];
@@ -478,7 +479,10 @@ extern bwtSearchResult_t BWT_Only_Search(uint8_t* seq, int start, int stop);
 extern bwtSearchResult_t BWT_Search_Backward(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list);
 
 extern bwtSearchResult_t BWT_Search_Backward_hash(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list);
-
+extern bwtSearchResult_t BWT_Search_Forward_hash_chr(uint8_t* seq, int start, int stop ,int last_rightset,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo);
+extern bwtSearchResult_t BWT_Search_Backward_hash_chr(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo);
+extern bwtSearchResult_t BWT_Search_Forward_3_chr(uint8_t* seq, int start, int stop ,int last_rightset,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo);
+extern bwtSearchResult_t BWT_Search_Backward_chr(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list,int chrNo);
 extern bwtSearchResult_t BWT_Search_BothSide(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list);
 extern bwtSearchResult_t BWT_Search_BothSide1(uint8_t* seq, int start, int stop ,vector<bwtint_t>* il_list, vector<int>* interval_list,vector<int>* match_len_list,vector<int>* match_beg_list);
 extern int GetNextChunk_Block(ReadItem_t *chunk,int bSepLibrary,int chunkSize, int flag,FILE *file, FILE *file2,size_t& offset1,size_t& offset2,int &is_end,char * resident_content);
@@ -487,6 +491,7 @@ extern int GetNextChunk_Block_1(ReadItem_t *chunk,int bSepLibrary,int chunkSize,
 extern int GetNextChunk_Block_2(ReadItem_t *chunk,int bSepLibrary,int chunkSize, int flag,FILE *file, FILE *file2);
 
 extern bwtint_t bwt_sa(bwtint_t k);
+extern void bwt_sa_batch_chr(bwtint_t k,int interval,int match_len,int match_beg,vector<SeedPair_t> &SeedPairVec,int chrNo);
 
 // GetData.cpp
 extern bool CheckReadFormat(const char* filename);
@@ -535,6 +540,7 @@ extern void IdentifySeedPairs_FastMode_getN(int rlen, uint8_t* EncodeSeq ,vector
 extern void GenerateAlignmentCandidateForIlluminaSeq_Recycle(int rlen, vector<SeedPair_t>& SeedPairVec,vector<AlignmentCandidate_t>& AlignmentVec);
 
 extern Coordinate_t GenCoordinateInfo(bool bFirstRead, int64_t gPos, int64_t end_gPos, vector<pair<int, char> >& cigar_vec);
+extern void IdentifySeedPairs_FastMode_getN_chr(int rlen, uint8_t* EncodeSeq ,vector<SeedPair_t>& SeedPairVec ,int gotN,int chrNo);
 
 
 // tools.cpp
