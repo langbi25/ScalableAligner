@@ -188,27 +188,27 @@ void IdentifySeedPairs_FastMode_getN(int rlen, uint8_t* EncodeSeq ,vector<SeedPa
 
 	sort(SeedPairVec.begin(), SeedPairVec.end(), CompByPosDiff);
 
-		for(int x =0;x<SeedPairVec.size();x++){
-			if(SeedPairVec[x].gPos <GenomeSize){
+		// for(int x =0;x<SeedPairVec.size();x++){
+		// 	if(SeedPairVec[x].gPos <GenomeSize){
 
-				int ChromosomeIdx = ChrLocMap.lower_bound(SeedPairVec[x].gPos)->second;
-				uint32_t FowardLocation =ChromosomeVec[ChromosomeIdx].FowardLocation;
-				uint32_t gPos = SeedPairVec[x].gPos + 1 - FowardLocation;
-				string chrName =ChromosomeVec[ChromosomeIdx].name;
+		// 		int ChromosomeIdx = ChrLocMap.lower_bound(SeedPairVec[x].gPos)->second;
+		// 		uint32_t FowardLocation =ChromosomeVec[ChromosomeIdx].FowardLocation;
+		// 		uint32_t gPos = SeedPairVec[x].gPos + 1 - FowardLocation;
+		// 		string chrName =ChromosomeVec[ChromosomeIdx].name;
 
-				std::cerr <<" " << bwt->seq_len << " "<< bwtIdx->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen << '\n';
+		// 		std::cerr <<" " << bwt->seq_len << " "<< bwtIdx->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen << '\n';
 
-			}else{
-				int ChromosomeIdx = ChrLocMap.lower_bound(SeedPairVec[x].gPos)->second;
-				uint32_t end_gPos =SeedPairVec[x].gPos+SeedPairVec[x].gLen-1;
-				uint32_t gPos = ChrLocMap.lower_bound(SeedPairVec[x].gPos)->first - end_gPos + 1;
-				string chrName =ChromosomeVec[ChromosomeIdx].name;
+		// 	}else{
+		// 		int ChromosomeIdx = ChrLocMap.lower_bound(SeedPairVec[x].gPos)->second;
+		// 		uint32_t end_gPos =SeedPairVec[x].gPos+SeedPairVec[x].gLen-1;
+		// 		uint32_t gPos = ChrLocMap.lower_bound(SeedPairVec[x].gPos)->first - end_gPos + 1;
+		// 		string chrName =ChromosomeVec[ChromosomeIdx].name;
 
-				std::cerr <<" " << bwt->seq_len << " "<< bwtIdx->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen << '\n';
+		// 		std::cerr  << bwt->seq_len << " "<< bwtIdx->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen <<" "<< ChromosomeVec[ChromosomeIdx].ReverseLocation<< '\n';
 
-			}
+		// 	}
 
-		}
+		// }
 
 
 	vector<bwtint_t>().swap(il_list);
@@ -302,9 +302,10 @@ void IdentifySeedPairs_FastMode_getN_chr(int rlen, uint8_t* EncodeSeq ,vector<Se
 				uint32_t end_gPos =SeedPairVec[x].gPos+SeedPairVec[x].gLen-1;
 				uint32_t gPos = ChrLocMap_chr[chrNo].lower_bound(SeedPairVec[x].gPos)->first - end_gPos + 1;
 				string chrName =ChromosomeVec_chr[chrNo][ChromosomeIdx].name;
-				uint32_t trueGpos =SeedPairVec[x].gPos +GenomeSize_chr[chrNo]+ChromosomeVec[chr].ReverseLocation;
-
-				std::cerr<< chr_map[chrNo] <<" " << bwt_chr[chrNo]->seq_len << " "<< bwtIdx_chr[chrNo]->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen <<" " <<trueGpos<< '\n';
+				//这个是转换到完整HG38上的位置
+				int64_t trueGpos =ChromosomeVec[chr].ReverseLocation+(SeedPairVec[x].gPos -GenomeSize_chr[chrNo]);
+				std::cerr<< ChromosomeVec[chr].ReverseLocation <<" " <<(SeedPairVec[x].gPos -GenomeSize_chr[chrNo])<<endl;
+				std::cerr<< chr_map[chrNo] <<" " << bwt_chr[chrNo]->seq_len << " "<< bwtIdx_chr[chrNo]->bns->l_pac <<" " <<SeedPairVec[x].gPos <<" "<< ChromosomeIdx <<" " <<chrName <<" " <<gPos<<" " <<SeedPairVec[x].gLen  <<" "<<SeedPairVec[x].rPos<< " " <<SeedPairVec[x].rLen <<" " <<trueGpos << " " << GenomeSize_chr[chrNo]<<'\n';
 
 			}
 

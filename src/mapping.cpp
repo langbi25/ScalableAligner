@@ -1872,7 +1872,7 @@ void  process_mapping( void * arg ) {
 					std::string chrPart = fileName.substr(0, dot);
 
 					queueItem->readArr[q->num].match_chr.push_back(map_chr[chrPart]);
-								// fprintf(stderr, "%s:%d\t",chrPart.c_str(),map_chr[chrPart] );
+								fprintf(stderr, "%s:%d\t",chrPart.c_str(),map_chr[chrPart] );
 
 				}
 			}
@@ -1881,7 +1881,9 @@ void  process_mapping( void * arg ) {
 
 		}
 		for(i=0;i<queueItem->readNum;i++){
-			IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,123);
+			for(int j =0;j<queueItem->readArr[i].match_chr.size();j++){
+				IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,queueItem->readArr[i].match_chr[j]);
+			}
 		}
 
 
