@@ -19,6 +19,7 @@ char* refSeq_chr[455];
 string indexPath,readFile1 ,readFile2;
 char *outputFile ,*indexFile ,*refSeq;
 int threadNum, maxInsertSize, MaxGaps, MinSeedLength, OutputFileFormat,OutputByOrder;
+int MinSeedLength_chr;
 // bool bPairEnd ,bPacBioData,FastQFormat;
 // int iThreadNum, MaxInsertSize;
 bool bDebugMode, bPairEnd, bPacBioData, bMultiHit, gzCompressed, FastQFormat, bSilent ,bHash,bBlockRead;

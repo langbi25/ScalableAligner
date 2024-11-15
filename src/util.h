@@ -435,7 +435,7 @@ extern	size_t blocks;
 extern	size_t block_size ; // 4K一个块
 extern	size_t actual_block_size ;
 
-
+extern int MinSeedLength_chr;
 
 extern size_t offset1 ,offset2 ; 
 extern int pos1,pos2;

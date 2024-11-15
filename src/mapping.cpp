@@ -1812,7 +1812,7 @@ void  process_mapping( void * arg ) {
 	int i, j;
 
 
-	QuerySet qs;
+	
 
     if (bPacBioData) buffer = new char[1024000];
 	else buffer = new char[10240];
@@ -1849,7 +1849,7 @@ void  process_mapping( void * arg ) {
 		// 	}
 		// }
 		// print_query_results(qs, o);
-		
+		QuerySet qs;
 
         for(i=0;i<queueItem->readNum;i++){
             queueItem->EncodeSeq[i] = new uint8_t[queueItem->readArr[i].rlen];
@@ -1859,7 +1859,6 @@ void  process_mapping( void * arg ) {
 		//在这里植入布隆过滤器
 
 		query_batch(root, qs);
-
 		for (auto& q : qs) {
 			// fprintf(bffile, "%d\t%f\t",q->matching.size(),QUERY_THRESHOLD );
 			queueItem->readArr[q->num].matching =q->matching;
@@ -1870,26 +1869,49 @@ void  process_mapping( void * arg ) {
 					std::string fileName = n->name().substr(lastSlash + 1);
 					int dot = fileName.find('.');
 					std::string chrPart = fileName.substr(0, dot);
-
 					queueItem->readArr[q->num].match_chr.push_back(map_chr[chrPart]);
-								fprintf(stderr, "%s:%d\t",chrPart.c_str(),map_chr[chrPart] );
-
+								// fprintf(stderr, "%s:%d\t",chrPart.c_str(),map_chr[chrPart] );
 				}
 			}
-
-			fprintf(stderr, "%d\n",queueItem->readArr[q->num].match_chr.size() );
-
+			delete q;
+			// fprintf(stderr, "%d\n",queueItem->readArr[q->num].match_chr.size() );
 		}
+
+
+		// for(i=0;i<queueItem->readNum;i++){
+		// 	if(queueItem->readArr[i].match_chr.size() >0 ){
+		// 		for(int j =0;j<queueItem->readArr[i].match_chr.size();j++){
+		// 			IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,queueItem->readArr[i].match_chr[j]);
+		// 		}				
+		// 	}else{
+		// 		IdentifySeedPairs_FastMode_getN(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN);
+		// 	}
+
+		// }
+
+
 		for(i=0;i<queueItem->readNum;i++){
-			for(int j =0;j<queueItem->readArr[i].match_chr.size();j++){
-				IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,queueItem->readArr[i].match_chr[j]);
+			// for(int i=0;i<455;i++){
+			// 	IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,i);
+			// }
+			if(queueItem->readArr[i].match_chr.size() >0){
+				IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,queueItem->readArr[i].match_chr[0]);
+							
+			}else{
+				IdentifySeedPairs_FastMode_getN(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN);
 			}
+
 		}
 
-
+		// for(i=0;i<queueItem->readNum;i++){
+		// 	//  fprintf(stderr, "%d,%d\n",i ,queueItem->readArr[i].gotN);
+		// 	IdentifySeedPairs_FastMode_getN_chr(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN,123);
+		// 	// GenerateAlignmentCandidateForIlluminaSeq_Recycle(queueItem->readArr[i].rlen, queueItem->SeedPairVec1[i],queueItem->AlignmentVec1[i]);
+		// }
 
 		for(i=0;i<queueItem->readNum;i++){
-			IdentifySeedPairs_FastMode_getN(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN);
+
+			// IdentifySeedPairs_FastMode_getN(queueItem->readArr[i].rlen, queueItem->EncodeSeq[i],queueItem->SeedPairVec1[i],queueItem->readArr[i].gotN);
 			GenerateAlignmentCandidateForIlluminaSeq_Recycle(queueItem->readArr[i].rlen, queueItem->SeedPairVec1[i],queueItem->AlignmentVec1[i]);
 		}
 		for(i=0;i<queueItem->readNum;i++){
@@ -1965,9 +1987,7 @@ void  process_mapping( void * arg ) {
 
         // myUniqueMapping = myUnMapping = 0; 
     }
-	// for (auto & p : qs) {
-	// 	delete p;
-	// }
+
 
 	for (i=0;i<queueItem->readNum;i++){
 		vector<SeedPair_t>().swap(queueItem->SeedPairVec1[i]);
@@ -2092,6 +2112,7 @@ void processInit(){
 	// }
 
 	MinSeedLength=20;
+	MinSeedLength_chr =40;
 	actual_block_size = block_size - 1;
 }
 

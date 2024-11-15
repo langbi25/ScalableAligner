@@ -2823,6 +2823,12 @@ void bwt_sa_batch_chr(bwtint_t k,int interval,int match_len,int match_beg,vector
 			SeedPair.bSimple = true;
 			// pos_list[i] =(sa + bwt->sa[k/bwt->sa_intv]);
 			SeedPair.gPos =sa + bwt_chr[chrNo]->sa[k/bwt_chr[chrNo]->sa_intv];
+			int chr =ChromosomeVecMap[chr_map[chrNo]];
+			if(SeedPair.gPos<GenomeSize_chr[chrNo]){
+				SeedPair.gPos =ChromosomeVec[chr].FowardLocation + SeedPair.gPos;
+			}else{
+				SeedPair.gPos =ChromosomeVec[chr].ReverseLocation+(SeedPair.gPos -GenomeSize_chr[chrNo]);
+			}
 			SeedPair.rPos = match_beg;
 			SeedPair.PosDiff = SeedPair.gPos -SeedPair.rPos;
 			SeedPair.rLen = SeedPair.gLen = match_len;
@@ -3616,7 +3622,7 @@ bwtSearchResult_t BWT_Search_Forward_3_chr(uint8_t* seq, int start, int stop ,in
 	ik.x[0] = bwt_chr[chrNo]->L2[p] + 1;
 	ik.x[1] = bwt_chr[chrNo]->L2[3 - p] + 1;
 	//interval
-	ik.x[2] = bwt_chr[chrNo]->L2[p + 1] - bwt->L2[p];
+	ik.x[2] = bwt_chr[chrNo]->L2[p + 1] - bwt_chr[chrNo]->L2[p];
 
 
 
@@ -3670,7 +3676,7 @@ bwtSearchResult_t BWT_Search_Forward_3_chr(uint8_t* seq, int start, int stop ,in
 	}
 	leftest =pos+1;
 	//if (bDebugMode) printf("bwt_search: pos=%d len=%d, freq=%d\n", start, pos - start, (int)ik.x[2]);
-	if ((bwtSearchResult.len =rightest -leftest ) < MinSeedLength  || rightest <=last_rightset){
+	if ((bwtSearchResult.len =rightest -leftest ) < MinSeedLength_chr  || rightest <=last_rightset){
 		bwtSearchResult.rightset =last_rightset;
 		bwtSearchResult.freq = 0;
 	} else{
@@ -3693,7 +3699,7 @@ bwtSearchResult_t BWT_Search_Forward_3_chr(uint8_t* seq, int start, int stop ,in
 			match_beg_list->push_back(bwtSearchResult.leftest);
 		}
 	}
-	if(stop-rightest >=MinSeedLength){
+	if(stop-rightest >=MinSeedLength_chr){
 		int com_start =   rightest%10==0 ?  ((rightest-1)/10)*10   :  rightest/10*10;
 		int com_pos ;
 		int com_match_len=0;
@@ -3751,7 +3757,7 @@ bwtSearchResult_t BWT_Search_Forward_3_chr(uint8_t* seq, int start, int stop ,in
 		com_match_len =com_rightest -com_leftest;
 		//	fprintf(stderr,"nmsl:com_start:%d %d-%d-%d  --%ld\n",com_start,com_leftest,com_leftest+com_match_len,bwtSearchResult.rightset,ik.x[0]);
 
-		if(com_match_len >=MinSeedLength  && (com_rightest >bwtSearchResult.rightset )){
+		if(com_match_len >=MinSeedLength_chr  && (com_rightest >bwtSearchResult.rightset )){
 			il_list->push_back(ik.x[0]);
 			if( (int)ik.x[2] <= OCC_Thr){
 				interval_list->push_back((int)ik.x[2]);
@@ -4041,7 +4047,7 @@ bwtSearchResult_t BWT_Search_Forward_hash_chr(uint8_t* seq, int start, int stop 
 
 	//if (bDebugMode) printf("bwt_search: pos=%d len=%d, freq=%d\n", start, pos - start, (int)ik.x[2]);
 		// printf("bwt_search: pos=%d len=%d, freq=%d\n", start, rightest -leftest, (int)ik.x[2]);
-	if ((bwtSearchResult.len =rightest -leftest ) < MinSeedLength  || rightest <=last_rightset){
+	if ((bwtSearchResult.len =rightest -leftest ) < MinSeedLength_chr  || rightest <=last_rightset){
 		bwtSearchResult.rightset =last_rightset;
 		bwtSearchResult.freq = 0;
 	} else{
@@ -4066,7 +4072,7 @@ bwtSearchResult_t BWT_Search_Forward_hash_chr(uint8_t* seq, int start, int stop 
 	}
 
 
-	if(stop-rightest >=MinSeedLength){
+	if(stop-rightest >=MinSeedLength_chr){
 		int com_start =   rightest%10==0 ?  ((rightest-1)/10)*10   :  rightest/10*10;
 		int tmp_Start =com_start;
 		int com_pos ;
@@ -4137,7 +4143,7 @@ bwtSearchResult_t BWT_Search_Forward_hash_chr(uint8_t* seq, int start, int stop 
 		com_match_len =com_rightest -com_leftest;
 		//	fprintf(stderr,"nmsl:com_start:%d %d-%d-%d  --%ld\n",com_start,com_leftest,com_leftest+com_match_len,bwtSearchResult.rightset,ik.x[0]);
 
-		if(com_match_len >=MinSeedLength  && (com_rightest >bwtSearchResult.rightset )){
+		if(com_match_len >=MinSeedLength_chr  && (com_rightest >bwtSearchResult.rightset )){
 			il_list->push_back(ik.x[0]);
 			if( (int)ik.x[2] <= OCC_Thr){
 				interval_list->push_back((int)ik.x[2]);
